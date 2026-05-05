@@ -1,3 +1,4 @@
+# flake8: noqa
 import re
 
 with open("app_advanced.py", "r") as f:
@@ -14,11 +15,11 @@ def get_llm_response(user_input, mood, lang='en', user_id=None):
         "Authorization": f"Bearer {api_key}",
         "Accept": "application/json"
     }
-    
+
     lang_name = "casual English (like a close friend texting)"
-    if lang == "hi": 
+    if lang == "hi":
         lang_name = "Hinglish (conversational Hindi mixed with English, casual and friendly)"
-    elif lang == "te": 
+    elif lang == "te":
         lang_name = "Tenglish (conversational Telugu mixed with English, casual and friendly)"
 
     history_text = ""
@@ -64,17 +65,21 @@ content = content.replace("return render_template('index.html')", "return render
 api_mood_replacement = """
     mood = mood_ai.detect_mood(message)
     mood_data = mood_ai.get_mood_data(mood)
-    
+
     # Try LLM first
     llm_msg = get_llm_response(message, mood, 'en', session['user_id'])
     if llm_msg:
         response_text = llm_msg
     else:
         response_text = mood_ai.get_response(mood, message)
-        
+
     song = random.choice(mood_data['songs'])
 """
-content = re.sub(r"    mood = mood_ai\.detect_mood\(message\)\n    mood_data = mood_ai\.get_mood_data\(mood\)\n    response_text = mood_ai\.get_response\(mood, message\)\n    song = random\.choice\(mood_data\['songs'\]\)", api_mood_replacement.strip('\n'), content)
+content = re.sub(
+    r"    mood = mood_ai\.detect_mood\(message\)\n    mood_data = mood_ai\.get_mood_data\(mood\)\n    response_text = mood_ai\.get_response\(mood, message\)\n    song = random\.choice\(mood_data\['songs'\]\)",
+    api_mood_replacement.strip("\n"),
+    content,
+)
 
 with open("app.py", "w") as f:
     f.write(content)
