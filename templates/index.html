@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AMIS — AI Mood Intelligence System</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="/static/hyperspeed.js"></script>
+  <script src="/static/advanced3d.js" defer></script>
+  <!-- Spotify callback must be defined before SDK loads -->
+  <script>
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      console.log('Spotify SDK Ready');
+      if (typeof initializeSpotifyPlayer === 'function') {
+        initializeSpotifyPlayer();
+      }
+    };
+  </script>
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+</head>
+
+<body class="hidden">
+  <!-- Cosmic Orb Background Elements -->
+  <div class="cosmic-orb-1"></div>
+  <div class="cosmic-orb-2"></div>
+  <div class="cosmic-orb-3"></div>
+
+  <div id="app" class="app-layout">
+    <!-- Auth Screen -->
+    <div id="authScreen" class="auth-screen hidden">
+      <div id="hyperspeed-bg" class="hyperspeed-bg"></div>
+      <div class="auth-card cosmic-border">
+        <div class="auth-logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path
+              d="M12 2a7 7 0 0 1 7 7c0 3-1.5 5-3 6.5V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.5C6.5 14 5 12 5 9a7 7 0 0 1 7-7z" />
+          </svg>
+        </div>
+        <h1>AMIS</h1>
+        <p class="auth-sub">🌌 Advanced Mood Intelligence System</p>
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Login</button>
+          <button class="auth-tab" data-tab="register">Register</button>
+        </div>
+        <div id="authError" class="auth-error hidden"></div>
+        <form id="authForm">
+          <input type="text" id="authUsername" placeholder="Username" required autocomplete="username">
+          <input type="password" id="authPassword" placeholder="Password" required autocomplete="current-password">
+          <button type="submit" class="auth-submit" id="authSubmitBtn">Login</button>
+        </form>
+        <p class="auth-footer">✨ Your cosmic companion for emotional wellness</p>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sb-top">
+        <button class="new-chat-btn holographic" onclick="location.reload()">✨ New Chat</button>
+        <div class="sb-user">
+          <div class="sb-avatar" id="sbAvatar">M</div>
+          <div class="sb-info">
+            <div class="sb-name" id="sbName">User</div>
+            <div class="sb-status">🌌 Cosmic Explorer</div>
+          </div>
+        </div>
+      </div>
+      <nav class="sb-nav">
+        <button class="sb-item active" data-view="chat">
+          <span>💬</span> Chat
+        </button>
+        <button class="sb-item" data-view="history">
+          <span>📜</span> History
+        </button>
+        <button class="sb-item" data-view="stats">
+          <span>📊</span> Stats
+        </button>
+        <button class="sb-item" onclick="document.getElementById('settingsPanel').classList.toggle('show')">
+          <span>⚙️</span> Settings
+        </button>
+        <button class="sb-item" onclick="logout()">
+          <span>🚪</span> Logout
+        </button>
+      </nav>
+      <div class="sb-lang">
+        <button class="lang-btn active" data-lang="en">English</button>
+        <button class="lang-btn" data-lang="hi">हिन्दी</button>
+        <button class="lang-btn" data-lang="te">తెలుగు</button>
+      </div>
+    </aside>
+
+    <!-- TOGGLE SIDEBAR (mobile) -->
+    <button class="sb-toggle" id="sbToggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </button>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+      <!-- Chat View -->
+      <div id="chatView" class="chat-view">
+        <div class="chat-scroll" id="chatScroll">
+          <div id="chatbox" class="chat-messages">
+            <!-- Welcome -->
+            <div id="welcomeScreen" class="welcome-screen">
+              <div class="welcome-avatar stellar-pulse">🌌</div>
+              <h2>Welcome to AMIS</h2>
+              <p>🌟 Your advanced mood companion with cosmic insights and quantum wellness</p>
+              <div class="welcome-grid">
+                <button class="welcome-card holographic" onclick="quickSend('I feel happy and excited today')">
+                  <span>😄</span>
+                  <p>Happy & Excited</p>
+                </button>
+                <button class="welcome-card holographic" onclick="quickSend('I\'m feeling a bit down today')">
+                  <span>😔</span>
+                  <p>Feeling Down</p>
+                </button>
+                <button class="welcome-card holographic" onclick="quickSend('I\'m stressed about work')">
+                  <span>😌</span>
+                  <p>Stressed</p>
+                </button>
+                <button class="welcome-card holographic" onclick="quickSend('I\'m feeling romantic today')">
+                  <span>💕</span>
+                  <p>Romantic</p>
+                </button>
+                <button class="welcome-card holographic" onclick="quickSend('I have so much energy right now')">
+                  <span>⚡</span>
+                  <p>Energetic</p>
+                </button>
+                <button class="welcome-card holographic" onclick="quickSend('I\'m feeling nostalgic')">
+                  <span>🌙</span>
+                  <p>Nostalgic</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Area (ChatGPT style) -->
+        <div class="input-wrapper">
+          <div class="input-container">
+            <button class="voice-btn" id="voiceBtn" onclick="startVoice()" title="Voice input">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
+            <textarea id="userInput" placeholder="Message AMIS..." rows="1" autocomplete="off"></textarea>
+            <button class="speaker-btn" id="speakerBtn" onclick="toggleSpeaker()" title="Toggle voice output">
+              <svg id="speakerOn" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+              <svg id="speakerOff" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" class="hidden">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            </button>
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
+          <p class="input-footer">AMIS uses NLP · Spotify Auto-Play · Chart.js · 🎤 Human Voice AI</p>
+        </div>
+      </div>
+
+      <!-- ═══ DASHBOARD VIEW ═══ -->
+      <div id="dashView" class="dash-view hidden">
+        <div class="dash-scroll">
+          <div class="dash-content">
+            <h2 class="dash-title">📊 Mood Analytics Dashboard</h2>
+            <div class="dash-grid">
+              <div class="stat-card">
+                <div class="stat-icon">💬</div>
+                <div class="stat-val" id="sTotal">0</div>
+                <div class="stat-lbl">Total Chats</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-val" id="sToday">0</div>
+                <div class="stat-lbl">Today</div>
+              </div>
+              <div class="stat-card accent">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-val" id="sTop">—</div>
+                <div class="stat-lbl">Top Mood</div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-head">
+                <h3>📈 Mood Frequency</h3><span class="live-pill"><span class="live-dot"></span>LIVE</span>
+              </div>
+              <div class="chart-area"><canvas id="barChart"></canvas></div>
+            </div>
+            <div class="chart-row">
+              <div class="chart-card half">
+                <h3>🍩 Distribution</h3>
+                <div class="chart-area pie-area"><canvas id="pieChart"></canvas></div>
+              </div>
+              <div class="chart-card half">
+                <h3>⏰ Hourly Activity</h3>
+                <div class="chart-area"><canvas id="lineChart"></canvas></div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h3>🕐 Recent Mood Timeline</h3>
+              <div id="timeline" class="timeline"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ HISTORY VIEW ═══ -->
+      <div id="histView" class="hist-view hidden">
+        <div class="dash-scroll">
+          <div class="dash-content">
+            <div class="hist-head">
+              <h2 class="dash-title">💾 Chat History</h2><button class="clear-btn" onclick="clearHistory()">Clear
+                All</button>
+            </div>
+            <div id="historyList" class="history-list">
+              <p class="empty-msg">No conversations yet…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SETTINGS PANEL ═══ -->
+      <div id="settingsPanel" class="settings-panel hidden">
+        <div class="settings-content">
+          <h3>⚙️ Settings</h3>
+          <p>Toggle Text-to-Speech:</p>
+          <button onclick="toggleSpeaker()" class="holographic">Toggle Voice</button>
+          <br><br>
+          <p>Clear all history:</p>
+          <button onclick="clearHistory()" class="holographic" style="color: #ff6b6b; border-color: #ff6b6b;">Delete History</button>
+          <br><br>
+          <button onclick="document.getElementById('settingsPanel').classList.remove('show')" class="holographic">Close</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    /* ═══ CONSTANTS ═══ */
+    let isFirst = true; let currentLang = 'en'; let ttsEnabled = true; let selectedVoice = null;
+    let pieC = null, barC = null, lineC = null, timer = null, authMode = 'login', currentView = 'chat';
+
+    // Safe DOM element access
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const chatbox = document.getElementById('chatbox');
+    const chatScroll = document.getElementById('chatScroll');
+    const voiceBtn = document.getElementById('voiceBtn');
+
+    // Language placeholders
+    const PLACEHOLDERS = { en: 'Message AMIS...', hi: 'AMIS को संदेश भेजें...', te: 'AMISకి సందేశం పంపండి...' };
+
+    // Voice preferences per language (priority order)
+    const VOICE_PREFS = {
+      en: ['Microsoft Zira Desktop', 'Google US English Female', 'Samantha', 'Microsoft Hazel Desktop'],
+      hi: ['Microsoft Hemant Desktop', 'Google Hindi Male', 'Ravi', 'Microsoft David Desktop'],
+      te: ['Microsoft Ravi Desktop', 'Google Telugu Male', 'Microsoft Krishna Desktop', 'Microsoft Pravin Desktop']
+    };
+
+    // Language codes for speech synthesis
+    const VOICE_CODES = { en: 'en-US', hi: 'hi-IN', te: 'te-IN' };
+
+    // Mood colors and emojis for history
+    const MC = { happy: '#FFD93D', sad: '#6C7AE0', stressed: '#FF6B6B', angry: '#FF4757', romantic: '#FF6B9D', energetic: '#4ECDC4', chill: '#95E1D3', nostalgic: '#DDA0DD', confident: '#FFA502', bored: '#778CA3' };
+    const ME = { happy: '😄', sad: '😔', stressed: '😤', angry: '😠', romantic: '💕', energetic: '⚡', chill: '😌', nostalgic: '🌙', confident: '😎', bored: '😑' };
+
+    // Welcome HTML backup
+    const welcomeHtml = document.getElementById('welcomeScreen')?.outerHTML || '';
+
+    /* ═══ TEXTAREA AUTO-RESIZE ═══ */
+    userInput.addEventListener('input', () => { userInput.style.height = 'auto'; userInput.style.height = Math.min(userInput.scrollHeight, 200) + 'px'; });
+    userInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+
+    function switchAuth(mode) {
+      authMode = mode;
+      try {
+        document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', i === (mode === 'login' ? 0 : 1)));
+        document.getElementById('authSubmitBtn').textContent = 'Continue';
+        document.getElementById('authError').classList.add('hidden');
+      } catch (error) { console.error('Switch auth error:', error); }
+    }
+
+    function sendMessage() {
+      const t = userInput.value.trim(); if (!t) return;
+      if (isFirst) { const w = document.getElementById('welcomeScreen'); if (w) w.remove(); isFirst = false; }
+      addMsg(t, 'user'); userInput.value = ''; userInput.style.height = 'auto'; sendBtn.disabled = true;
+      const typ = showTyping();
+      fetch('/get', { method: 'POST', body: new URLSearchParams({ msg: t, lang: currentLang }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+        .then(r => r.json()).then(d => {
+          setTimeout(() => {
+            typ.remove(); addMsg(d.message, 'bot', d); speakText(d.message); sendBtn.disabled = false; userInput.focus();
+            // Auto-play Spotify if link exists and user is in Telugu or any language
+            if (d.link && spotifyReady && spotifyDeviceId) {
+              autoPlaySpotify(d.link);
+            }
+          }, 500 + Math.random() * 400);
+        }).catch(() => { typ.remove(); addMsg('Something went wrong. Try again.', 'bot'); sendBtn.disabled = false; });
+    }
+
+    function addMsg(text, sender, data = {}) {
+      const row = document.createElement('div'); row.className = `msg-row ${sender}`;
+      const inner = document.createElement('div'); inner.className = 'msg-inner';
+
+      // Avatar
+      const av = document.createElement('div'); av.className = 'msg-avatar';
+      if (sender === 'bot') { av.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a7 7 0 0 1 7 7c0 3-1.5 5-3 6.5V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.5C6.5 14 5 12 5 9a7 7 0 0 1 7-7z"/></svg>'; }
+      else { av.textContent = document.getElementById('sbAvatar').textContent; }
+
+      // Content
+      const content = document.createElement('div'); content.className = 'msg-content';
+      const name = document.createElement('div'); name.className = 'msg-name';
+      name.textContent = sender === 'user' ? 'You' : 'AMIS';
+      const body = document.createElement('div'); body.className = 'msg-body';
+      body.textContent = text;
+      content.appendChild(name); content.appendChild(body);
+
+      // Extras for bot
+      if (sender === 'bot' && data.mood && data.mood !== 'unknown') {
+        const extras = document.createElement('div'); extras.className = 'msg-extras';
+        // Mood ta
+        const tag = document.createElement('span'); tag.className = 'mood-tag';
+        tag.style.cssText = `--mc:${data.color || '#00CEC9'}`;
+        tag.textContent = `${ME[data.mood] || ''} ${data.mood}`;
+        extras.appendChild(tag);
+        // Wellness tip
+        if (data.tip) {
+          const tip = document.createElement('div'); tip.className = 'wellness-card';
+          tip.innerHTML = `<span class="wc-icon">🧘</span><span>${data.tip}</span>`; extras.appendChild(tip);
+        }
+        // Enhanced Spotify with Auto-Play and Change Song
+        if (data.link) {
+          const langLabels = { en: 'English', hi: 'Bollywood Hindi', te: 'Tollywood Telugu' };
+          const label = langLabels[currentLang] || 'English';
+          const spRow = document.createElement('div'); spRow.className = 'spotify-row';
+
+          // Auto-Play button (still available for manual trigger)
+          const autoPlayBtn = document.createElement('button'); autoPlayBtn.className = 'autoplay-btn';
+          autoPlayBtn.innerHTML = '▶️ Auto-Play';
+          autoPlayBtn.onclick = () => { autoPlaySpotify(data.link); };
+          spRow.appendChild(autoPlayBtn);
+
+          // Original Spotify link
+          const sp = document.createElement('a'); sp.className = 'spotify-btn'; sp.href = data.link; sp.target = '_blank'; sp.rel = 'noopener noreferrer';
+          sp.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>' + label + ' Playlist';
+          spRow.appendChild(sp);
+
+          // Change song button
+          if (data.links && data.links.length > 1) {
+            const chg = document.createElement('button'); chg.className = 'change-song-btn';
+            chg.innerHTML = '🎵 Change';
+            chg.onclick = () => {
+              const idx = data.links.indexOf(data.link);
+              data.link = data.links[(idx + 1) % data.links.length];
+              sp.href = data.link;
+              chg.classList.add('pulse');
+              setTimeout(() => chg.classList.remove('pulse'), 600);
+            };
+            spRow.appendChild(chg);
+          }
+
+          // Playing indicator
+          const indicator = document.createElement('div'); indicator.className = 'spotify-playing-indicator';
+          indicator.textContent = '';
+          spRow.appendChild(indicator);
+
+          extras.appendChild(spRow);
+
+          // Auto-play automatically if Spotify is ready
+          if (spotifyReady && spotifyDeviceId && currentLang === 'te') {
+            setTimeout(() => autoPlaySpotify(data.link), 1000);
+          }
+        }
+
+        // Advanced Cosmic Features Display
+        if (data.cosmic_data && data.advanced_features) {
+          const cosmicRow = document.createElement('div'); cosmicRow.className = 'cosmic-features-row';
+
+          // Cosmic resonance display
+          const resonanceCard = document.createElement('div'); resonanceCard.className = 'cosmic-card holographic';
+          resonanceCard.innerHTML = `
+        <div class="cosmic-header">🌌 Cosmic Resonance</div>
+        <div class="cosmic-frequency">${data.cosmic_data.frequency} Hz</div>
+        <div class="cosmic-state">Quantum State: ${data.advanced_features.quantum_state}</div>
+        <div class="cosmic-alignment">Alignment: ${data.advanced_features.cosmic_alignment.status}</div>
+      `;
+          cosmicRow.appendChild(resonanceCard);
+
+          // Mood prediction display
+          if (data.mood_prediction && data.mood_prediction.next_moods) {
+            const predictionCard = document.createElement('div'); predictionCard.className = 'cosmic-card quantum-field';
+            const nextMoods = data.mood_prediction.next_moods.slice(0, 2).map(([mood, prob]) =>
+              `<div class="mood-probability">${mood}: ${Math.round(prob * 100)}%</div>`
+            ).join('');
+            predictionCard.innerHTML = `
+          <div class="cosmic-header">🔮 Mood Evolution</div>
+          <div class="prediction-confidence">Confidence: ${Math.round(data.mood_prediction.confidence * 100)}%</div>
+          <div class="next-moods">${nextMoods}</div>
+          <div class="quantum-uncertainty">Quantum Uncertainty: ${Math.round(data.mood_prediction.quantum_uncertainty * 100)}%</div>
+        `;
+            cosmicRow.appendChild(predictionCard);
+          }
+
+          // Lunar influence display
+          const lunarCard = document.createElement('div'); lunarCard.className = 'cosmic-card stellar-pulse';
+          const lunarPhase = data.advanced_features.lunar_influence;
+          const lunarName = lunarPhase < 0.25 ? '🌑 New Moon' :
+            lunarPhase < 0.5 ? '🌒 Waxing Crescent' :
+              lunarPhase < 0.75 ? '🌓 First Quarter' : '🌕 Full Moon';
+          lunarCard.innerHTML = `
+        <div class="cosmic-header">🌙 Lunar Influence</div>
+        <div class="lunar-phase">${lunarName}</div>
+        <div class="lunar-power">Power: ${Math.round(lunarPhase * 100)}%</div>
+      `;
+          cosmicRow.appendChild(lunarCard);
+
+          extras.appendChild(cosmicRow);
+        }
+        content.appendChild(extras);
+      }
+
+      inner.appendChild(av); inner.appendChild(content); row.appendChild(inner);
+      chatbox.appendChild(row); chatScroll.scrollTop = chatScroll.scrollHeight;
+    }
+
+    function showTyping() {
+      const row = document.createElement('div'); row.className = 'msg-row bot';
+      row.innerHTML = '<div class="msg-inner"><div class="msg-avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a7 7 0 0 1 7 7c0 3-1.5 5-3 6.5V18a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.5C6.5 14 5 12 5 9a7 7 0 0 1 7-7z"/></svg></div><div class="msg-content"><div class="msg-name">AMIS</div><div class="typing-dots"><span></span><span></span><span></span></div></div></div>';
+      chatbox.appendChild(row); chatScroll.scrollTop = chatScroll.scrollHeight; return row;
+    }
+
+    /* ═══ VOICE INPUT ═══ */
+    function startVoice() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { alert('Voice not supported — try Chrome'); return; } const r = new SR(); r.lang = VOICE_CODES[currentLang] || 'en-US'; r.interimResults = false;
+      voiceBtn.classList.add('listening'); r.onresult = e => { userInput.value = e.results[0][0].transcript; voiceBtn.classList.remove('listening'); sendMessage(); };
+      r.onerror = () => voiceBtn.classList.remove('listening'); r.onend = () => voiceBtn.classList.remove('listening'); r.start();
+    }
+
+    /* ═══ VOICE OUTPUT (TTS — Nishuu-style for Hindi, natural for Telugu) ═══ */
+    // Variables ttsEnabled and selectedVoice already declared above
+
+    // Enhanced voice preference maps for more natural human voices (using existing VOICE_PREFS)
+
+    // Enhanced per-language voice tuning for more natural speech
+    const VOICE_TUNE = {
+      en: { pitch: 1.05, rate: 0.92, volume: 0.95 },   // Natural human female voice
+      hi: { pitch: 1.1, rate: 0.88, volume: 0.93 },     // Natural Hindi male voice
+      te: { pitch: 1.08, rate: 0.86, volume: 0.94 }     // Natural Telugu male voice
+    };
+
+    function loadVoices() {
+      try {
+        const voices = speechSynthesis.getVoices();
+        if (!voices.length) {
+          console.log('No voices available yet');
+          return;
+        }
+
+        const lang = currentLang || 'en';
+        console.log('Loading voices for language:', lang, 'Available voices:', voices.length);
+        console.log('All available voices:', voices.map(v => ({ name: v.name, lang: v.lang })));
+
+        const prefs = VOICE_PREFS[lang] || VOICE_PREFS.en;
+        selectedVoice = null;
+
+        // Try preferred voices first
+        for (const name of prefs) {
+          const v = voices.find(x => x.name.includes(name));
+          if (v) {
+            selectedVoice = v;
+            console.log('Found preferred voice:', v.name, 'Lang:', v.lang);
+            break;
+          }
+        }
+
+        // Fallback: match by language code
+        if (!selectedVoice) {
+          const langCode = VOICE_CODES[lang] || 'en-US';
+          const langPrefix = langCode.split('-')[0];
+          console.log('Trying fallback for language prefix:', langPrefix, 'Full code:', langCode);
+
+          // Find all voices that match the language
+          const langVoices = voices.filter(v => v.lang.startsWith(langPrefix));
+          console.log('Voices matching language prefix:', langVoices.map(v => ({ name: v.name, lang: v.lang })));
+
+          if (lang === 'te') {
+            // For Telugu, try male voices first, then any Telugu voice
+            selectedVoice = langVoices.find(v => v.name.match(/male|man|boy|ravi|hemant/i));
+            if (!selectedVoice && langVoices.length > 0) {
+              selectedVoice = langVoices[0]; // First Telugu voice
+              console.log('Using first Telugu voice:', selectedVoice.name);
+            }
+          } else {
+            // For other languages, try female voices first, then any matching voice
+            selectedVoice = langVoices.find(v => v.name.match(/female|woman|girl/i));
+            if (!selectedVoice && langVoices.length > 0) {
+              selectedVoice = langVoices[0]; // First matching voice
+              console.log('Using first matching voice:', selectedVoice.name);
+            }
+          }
+        }
+
+        // Last fallback - any voice with the right keywords
+        if (!selectedVoice) {
+          selectedVoice = voices.find(v => v.name.match(/female|woman|girl|zira|samantha|lekha|male|man|boy|ravi|hemant|telugu|తెలుగు|hindi|हिन्दी/i));
+          if (!selectedVoice) selectedVoice = voices[0];
+          console.log('Using final fallback voice:', selectedVoice?.name, 'Lang:', selectedVoice?.lang);
+        }
+
+        console.log('Final selected voice:', selectedVoice?.name, 'Language:', selectedVoice?.lang, 'Target language:', lang);
+      } catch (error) {
+        console.error('Error loading voices:', error);
+        // Fallback to default voice
+        selectedVoice = null;
+      }
+    }
+    if (typeof speechSynthesis !== 'undefined') {
+      speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices();
+    }
+
+    function speakText(text) {
+      try {
+        if (!ttsEnabled || !text || typeof speechSynthesis === 'undefined') {
+          console.log('Speech synthesis not available or disabled');
+          return;
+        }
+
+        console.log('Speaking text in language:', currentLang, 'Selected voice:', selectedVoice?.name);
+
+        // Enhanced text cleaning for more natural speech
+        let clean = text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, ' ')
+          .replace(/[—–]/g, ', ')
+          .replace(/[:;]/g, '.')
+          .replace(/\s+/g, ' ')
+          .replace(/\b\w+\b/g, match => {
+            // Add natural pauses for certain words
+            if (['and', 'but', 'or', 'so', 'because', 'however', 'therefore'].includes(match.toLowerCase())) {
+              return match + ',';
+            }
+            return match;
+          })
+          .trim();
+
+        speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(clean);
+
+        // Force voice reload if language changed
+        if (!selectedVoice || !selectedVoice.lang.startsWith(VOICE_CODES[currentLang]?.split('-')[0] || 'en')) {
+          console.log('Voice mismatch detected, reloading voices...');
+          loadVoices();
+          // Wait for voices to load, then speak
+          setTimeout(() => {
+            try {
+              if (selectedVoice) {
+                utter.voice = selectedVoice;
+                const tune = VOICE_TUNE[currentLang] || VOICE_TUNE.en;
+                utter.pitch = tune.pitch;
+                utter.rate = tune.rate;
+                utter.volume = tune.volume || 1.0;
+                utter.lang = VOICE_CODES[currentLang] || 'en-US';
+                console.log('Speaking with voice:', selectedVoice.name, 'Language:', utter.lang);
+                speechSynthesis.speak(utter);
+              } else {
+                // Fallback: speak with default voice
+                const tune = VOICE_TUNE[currentLang] || VOICE_TUNE.en;
+                utter.pitch = tune.pitch;
+                utter.rate = tune.rate;
+                utter.volume = tune.volume || 1.0;
+                utter.lang = VOICE_CODES[currentLang] || 'en-US';
+                speechSynthesis.speak(utter);
+              }
+            } catch (error) {
+              console.error('Error in delayed speech:', error);
+            }
+          }, 100);
+          return;
+        }
+
+        if (selectedVoice) utter.voice = selectedVoice;
+
+        // Apply enhanced per-language tuning
+        const tune = VOICE_TUNE[currentLang] || VOICE_TUNE.en;
+        utter.pitch = tune.pitch;
+        utter.rate = tune.rate;
+        utter.volume = tune.volume || 1.0;
+        utter.lang = VOICE_CODES[currentLang] || 'en-US';
+
+        console.log('Speaking with voice:', selectedVoice?.name, 'Language:', utter.lang, 'Text:', clean.substring(0, 50));
+
+        // Add natural pauses and prosody
+        utter.onboundary = (event) => {
+          try {
+            if (event.name === 'word') {
+              // Add micro-pauses between sentences
+              if (clean[event.charIndex - 1] === '.') {
+                utter.rate = tune.rate * 0.8;
+                setTimeout(() => { utter.rate = tune.rate; }, 150);
+              }
+            }
+          } catch (error) {
+            console.error('Error in speech boundary event:', error);
+          }
+        };
+
+        speechSynthesis.speak(utter);
+      } catch (error) {
+        console.error('Error in speakText function:', error);
+      }
+    }
+
+    function toggleSpeaker() {
+      ttsEnabled = !ttsEnabled;
+      document.getElementById('speakerOn').classList.toggle('hidden', !ttsEnabled);
+      document.getElementById('speakerOff').classList.toggle('hidden', ttsEnabled);
+      if (!ttsEnabled) {
+        speechSynthesis.cancel();
+        // Also pause Spotify if playing
+        if (window.spotifyPlayer) {
+          window.spotifyPlayer.pause().catch(err => console.log('Spotify pause error:', err));
+        }
+      }
+    }
+
+    /* ═══ SPOTIFY WEB PLAYBACK SDK ═══ */
+    let spotifyPlayer = null;
+    let spotifyDeviceId = null;
+    let spotifyReady = false;
+    let currentTrackUri = null;
+
+    function initializeSpotifyPlayer() {
+      // Get Spotify token from server (you'll need to implement this endpoint)
+      fetch('/spotify/token')
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            console.warn('Spotify not configured:', data.message);
+            spotifyReady = false;
+            return;
+          }
+
+          if (data.token) {
+            spotifyPlayer = new Spotify.Player({
+              name: 'AMIS Mood Player',
+              getOAuthToken: cb => { cb(data.token); },
+              volume: 0.8
+            });
+
+            // Error handling
+            spotifyPlayer.addListener('initialization_error', ({ message }) => {
+              console.error('Failed to initialize Spotify player:', message);
+            });
+
+            spotifyPlayer.addListener('authentication_error', ({ message }) => {
+              console.error('Failed to authenticate Spotify player:', message);
+            });
+
+            spotifyPlayer.addListener('account_error', ({ message }) => {
+              console.error('Spotify account error:', message);
+            });
+
+            spotifyPlayer.addListener('playback_error', ({ message }) => {
+              console.error('Spotify playback error:', message);
+            });
+
+            // Playback status updates
+            spotifyPlayer.addListener('player_state_changed', state => {
+              if (!state) return;
+              currentTrackUri = state.track_window.current_track.uri;
+              updateSpotifyUI(state);
+            });
+
+            // Ready
+            spotifyPlayer.addListener('ready', ({ device_id }) => {
+              console.log('Spotify player is ready with device ID:', device_id);
+              spotifyDeviceId = device_id;
+              spotifyReady = true;
+              showSpotifyReady();
+            });
+
+            // Not Ready
+            spotifyPlayer.addListener('not_ready', ({ device_id }) => {
+              console.log('Spotify player is not ready with device ID:', device_id);
+              spotifyReady = false;
+            });
+
+            // Connect to the player
+            spotifyPlayer.connect();
+          } else {
+            console.warn('No Spotify token available');
+            spotifyReady = false;
+          }
+        })
+        .catch(error => {
+          console.warn('Error getting Spotify token:', error);
+          spotifyReady = false;
+        });
+    }
+
+    function autoPlaySpotify(playlistUri) {
+      if (!spotifyReady || !spotifyDeviceId) {
+        console.log('Spotify player not ready, opening playlist in new tab');
+        window.open(playlistUri, '_blank');
+        return;
+      }
+
+      // Extract playlist ID from URI
+      const playlistId = playlistUri.split('/').pop().split('?')[0];
+
+    // Play the playlist
+    fetch(`https://api.spotify.com/v1/me/playlists/${playlistId}/tracks`, {
+      method: 'GET',
+      headers: {
+        'Authorization': 'Bearer ' + getSpotifyToken()
+      }
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.items && data.items.length > 0) {
+          const firstTrackUri = data.items[0].track.uri;
+
+          // Start playback
+          fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': 'Bearer ' + getSpotifyToken(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              uris: [firstTrackUri],
+              position_ms: 0
+            })
+          })
+            .then(response => {
+              if (response.ok) {
+                console.log('Auto-playing Spotify track');
+                showSpotifyPlaying(firstTrackUri);
+              } else {
+                console.log('Failed to auto-play, opening in new tab');
+                window.open(playlistUri, '_blank');
+              }
+            })
+            .catch(error => {
+              console.error('Error auto-playing:', error);
+              window.open(playlistUri, '_blank');
+            });
+        }
+      })
+      .catch(error => {
+        console.error('Error getting playlist tracks:', error);
+        window.open(playlistUri, '_blank');
+      });
+}
+
+    function getSpotifyToken() {
+      // This should be stored after getting it from /spotify/token
+      return window.spotifyToken || '';
+    }
+
+    function updateSpotifyUI(state) {
+      // Update UI to show current playing track
+      const track = state.track_window.current_track;
+      const isPlaying = !state.paused;
+
+      // Update any UI elements to show current track
+      document.querySelectorAll('.spotify-playing-indicator').forEach(el => {
+        el.textContent = isPlaying ? `🎵 Now Playing: ${track.name}` : '⏸️ Paused';
+      });
+    }
+
+    function showSpotifyReady() {
+      console.log('Spotify player ready for auto-play');
+      // You could show a small indicator that Spotify is ready
+    }
+
+    function showSpotifyPlaying(trackUri) {
+      console.log('Auto-playing:', trackUri);
+      // Update UI to show auto-playing status
+    }
+
+    /* ═══ LANGUAGE ═══ */
+    function setLang(lang) {
+      try {
+        console.log('Setting language to:', lang);
+        currentLang = lang;
+        userInput.placeholder = PLACEHOLDERS[lang] || PLACEHOLDERS.en;
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+        document.getElementById('sidebar').classList.remove('open');
+
+        // Force voice reload when language changes
+        selectedVoice = null;
+        loadVoices(); // Refresh voice for new language
+
+        // Test voice by speaking a short message
+        setTimeout(() => {
+          try {
+            if (selectedVoice && ttsEnabled && typeof speechSynthesis !== 'undefined') {
+              const testMsg = lang === 'te' ? 'నమస్కారం' : (lang === 'hi' ? 'नमस्ते' : 'Hello');
+              const utter = new SpeechSynthesisUtterance(testMsg);
+              utter.voice = selectedVoice;
+              utter.lang = VOICE_CODES[lang] || 'en-US';
+              utter.volume = 0.5;
+              speechSynthesis.speak(utter);
+              console.log('Test voice message spoken in:', lang);
+            }
+          } catch (error) {
+            console.error('Error testing voice:', error);
+          }
+        }, 500);
+      } catch (error) {
+        console.error('Error setting language:', error);
+      }
+    }
+
+    /* ═══ HISTORY ═══ */
+    function loadHistory() {
+      try {
+        fetch('/history').then(r => r.json()).then(data => {
+          const el = document.getElementById('historyList');
+          if (!data.length) { el.innerHTML = '<p class="empty-msg">No conversations yet…</p>'; return; }
+          el.innerHTML = data.map(i => {
+            const t = new Date(i.timestamp + 'Z').toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' });
+            const ml = i.mood && i.mood !== 'unknown' ? `<span class="hist-mood" style="--mc:${MC[i.mood] || '#555'}">${ME[i.mood] || ''} ${i.mood}</span>` : '';
+            return `<div class="hist-item"><div class="hist-row"><span class="hist-label you">You</span><span class="hist-time">${t}</span></div><p>${i.user_msg}</p><div class="hist-row"><span class="hist-label bot">AMIS</span>${ml}</div><p>${i.bot_msg}</p></div>`;
+          }).join('');
+        }).catch(error => {
+          console.error('Error loading history:', error);
+          const el = document.getElementById('historyList');
+          el.innerHTML = '<p class="empty-msg">Error loading history</p>';
+        });
+      } catch (error) {
+        console.error('Error in loadHistory:', error);
+      }
+    }
+    function clearHistory() {
+      try {
+        if (!confirm('Clear all chat history?')) return;
+        fetch('/clear-history', { method: 'POST' }).then(r => r.json()).then(() => loadHistory()).catch(error => {
+          console.error('Error clearing history:', error);
+        });
+      } catch (error) {
+        console.error('Error in clearHistory:', error);
+      }
+    }
+
+    /* ═══ DASHBOARD ═══ */
+    const cFont = { family: 'Inter', size: 11 }; const cTip = { backgroundColor: '#2d2d3f', titleColor: '#fff', bodyColor: '#ccc', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 12, cornerRadius: 8, titleFont: { weight: '600' } };
+    function startRefresh() { stopRefresh(); timer = setInterval(loadGraph, 5000); }
+    function stopRefresh() { if (timer) { clearInterval(timer); timer = null; } }
+    function loadDash() {
+      fetch('/stats').then(r => r.json()).then(d => {
+        document.getElementById('sTotal').textContent = d.total_chats;
+        document.getElementById('sToday').textContent = d.today_chats; document.getElementById('sTop').textContent = (ME[d.top_mood] || '') + ' ' + (d.top_mood || '—');
+        renderPie(d.mood_distribution); renderTL(d.recent_moods);
+      }); loadGraph();
+    }
+    function loadGraph() { fetch('/graph-data').then(r => r.json()).then(d => { renderBar(d.moods, d.counts); renderLine(d.hourly_labels, d.hourly_counts); }); }
+
+    function renderBar(m, c) {
+      const ctx = document.getElementById('barChart');
+      if (barC) { barC.data.labels = m.map(x => (ME[x] || '') + ' ' + x); barC.data.datasets[0].data = c; barC.data.datasets[0].backgroundColor = m.map(x => (MC[x] || '#555') + 'bb'); barC.data.datasets[0].borderColor = m.map(x => MC[x] || '#555'); barC.update('none'); return; }
+      barC = new Chart(ctx, {
+        type: 'bar', data: { labels: m.map(x => (ME[x] || '') + ' ' + x), datasets: [{ label: 'Count', data: c, backgroundColor: m.map(x => (MC[x] || '#555') + 'bb'), borderColor: m.map(x => MC[x] || '#555'), borderWidth: 1.5, borderRadius: 4 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: { duration: 500 }, plugins: { legend: { display: false }, tooltip: { ...cTip } },
+          scales: { x: { ticks: { color: '#999', font: cFont }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#999', font: cFont, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.06)' } } }
+        }
+      });
+    }
+
+    function renderPie(dist) {
+      const ctx = document.getElementById('pieChart'); if (pieC) pieC.destroy();
+      if (!dist.length) { ctx.parentElement.innerHTML = '<p class="empty-msg">Chat to build your profile</p>'; return; }
+      pieC = new Chart(ctx, {
+        type: 'doughnut', data: {
+          labels: dist.map(d => (ME[d.mood] || '') + ' ' + d.mood),
+          datasets: [{ data: dist.map(d => d.count), backgroundColor: dist.map(d => MC[d.mood] || '#555'), borderColor: '#1e1e2e', borderWidth: 3 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { color: '#bbb', padding: 12, font: cFont, usePointStyle: true } }, tooltip: { ...cTip } } }
+      });
+    }
+
+    function renderLine(l, c) {
+      const ctx = document.getElementById('lineChart');
+      if (lineC) { lineC.data.labels = l; lineC.data.datasets[0].data = c; lineC.update('none'); return; }
+      if (!l.length) { ctx.parentElement.innerHTML = '<p class="empty-msg">No activity data</p>'; return; }
+      lineC = new Chart(ctx, {
+        type: 'line', data: { labels: l, datasets: [{ label: 'Chats', data: c, borderColor: '#10a37f', backgroundColor: 'rgba(16,163,127,0.1)', fill: true, tension: .4, pointBackgroundColor: '#10a37f', pointRadius: 4, borderWidth: 2 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { ...cTip } },
+          scales: { x: { ticks: { color: '#999', font: cFont }, grid: { color: 'rgba(255,255,255,0.04)' } }, y: { beginAtZero: true, ticks: { color: '#999', font: cFont, stepSize: 1 }, grid: { color: 'rgba(255,255,255,0.06)' } } }
+        }
+      });
+    }
+
+    function renderTL(moods) {
+      const el = document.getElementById('timeline');
+      if (!moods.length) { el.innerHTML = '<p class="empty-msg">No moods yet</p>'; return; }
+      el.innerHTML = moods.map(m => {
+        const t = new Date(m.time + 'Z').toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }); const c = MC[m.mood] || '#555';
+        return `<div class="tl-item"><div class="tl-dot" style="background:${c};box-shadow:0 0 6px ${c}66"></div><div class="tl-body"><span class="tl-mood" style="color:${c}">${ME[m.mood] || ''} ${m.mood}</span><span class="tl-time">${t}</span></div></div>`;
+      }).join('');
+    }
+
+    /* ═══ INITIALIZATION ═══ */
+    function initializeApp() {
+      try {
+        // Check if user is logged in
+        fetch('/me').then(r => r.json()).then(user => {
+          document.body.classList.remove('hidden');
+          if (user.logged_in) {
+            // Show main app, destroy hyperspeed
+            document.getElementById('authScreen').classList.add('hidden');
+            if(window._hyperspeed){window._hyperspeed.dispose();window._hyperspeed=null;}
+            document.getElementById('sbAvatar').textContent = user.username[0].toUpperCase();
+            document.getElementById('sbName').textContent = user.username;
+            currentView = 'chat';
+            loadDash();
+          } else {
+            // Show auth screen with Hyperspeed warp effect
+            document.getElementById('authScreen').classList.remove('hidden');
+            if(typeof initHyperspeedLogin==='function'&&!window._hyperspeed){
+              try{window._hyperspeed=initHyperspeedLogin(document.getElementById('hyperspeed-bg'));}catch(e){console.warn('Hyperspeed:',e);}
+            }
+            setupAuthForm();
+          }
+        }).catch(error => {
+          console.error('Init error:', error);
+          document.body.classList.remove('hidden');
+          document.getElementById('authScreen').classList.remove('hidden');
+          if(typeof initHyperspeedLogin==='function'&&!window._hyperspeed){
+            try{window._hyperspeed=initHyperspeedLogin(document.getElementById('hyperspeed-bg'));}catch(e){}
+          }
+          setupAuthForm();
+        });
+      } catch (error) {
+        console.error('Initialization error:', error);
+        document.body.classList.remove('hidden');
+      }
+    }
+
+    function setupAuthForm() {
+      try {
+        document.querySelectorAll('.auth-tab').forEach(t => {
+            t.addEventListener('click', () => switchAuth(t.dataset.tab));
+        });
+        document.getElementById('authForm').addEventListener('submit', e => {
+          e.preventDefault();
+          const u = document.getElementById('authUsername').value.trim();
+          const p = document.getElementById('authPassword').value.trim();
+          const endpoint = authMode === 'login' ? '/login' : '/register';
+          fetch(endpoint, { method: 'POST', body: new URLSearchParams({ username: u, password: p }), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+            .then(r => r.json()).then(d => {
+              if (d.ok) { location.reload(); }
+              else { document.getElementById('authError').textContent = d.msg; document.getElementById('authError').classList.remove('hidden'); }
+            }).catch(err => {
+              document.getElementById('authError').textContent = 'Error: ' + err;
+              document.getElementById('authError').classList.remove('hidden');
+            });
+        });
+      } catch (error) {
+        console.error('Auth form setup error:', error);
+      }
+    }
+
+    function logout() {
+      fetch('/logout', { method: 'POST' }).then(() => location.reload()).catch(err => console.error('Logout error:', err));
+    }
+
+    function quickSend(msg) { userInput.value = msg; sendMessage(); }
+
+    function switchView(view) {
+      currentView = view;
+      document.getElementById('chatView').classList.add('hidden');
+      document.getElementById('dashView').classList.add('hidden');
+      document.getElementById('histView').classList.add('hidden');
+      if (view === 'chat') { document.getElementById('chatView').classList.remove('hidden'); }
+      else if (view === 'stats') { document.getElementById('dashView').classList.remove('hidden'); loadDash(); }
+      else if (view === 'history') { document.getElementById('histView').classList.remove('hidden'); loadHistory(); }
+      document.querySelectorAll('.sb-item').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+    }
+
+    // Setup view switching
+    try {
+      document.querySelectorAll('.sb-item[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => { switchView(btn.dataset.view); });
+      });
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.addEventListener('click', () => { setLang(btn.dataset.lang); });
+      });
+    } catch (error) {
+      console.error('View switching setup error:', error);
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+      initializeApp();
+    }
+  </script>
+</body>
+
+</html>

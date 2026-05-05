@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AMIS — AI Mood Intelligence System</title>
+  <meta name="description" content="AMIS: AI-powered mood companion with music therapy, wellness tips, and empathetic conversation.">
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-header">
+      <button class="sb-new-btn" onclick="newChat()">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Chat
+      </button>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item active" data-view="chat" onclick="switchView('chat',this)">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Chat
+      </button>
+      <button class="sb-item" data-view="history" onclick="switchView('history',this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>History
+      </button>
+      <button class="sb-item" data-view="settings" onclick="switchView('settings',this)">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings
+      </button>
+      <button class="sb-item" onclick="doLogout()">
+        <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Logout
+      </button>
+    </nav>
+    <div class="sb-lang">
+      <button class="lang-btn active" data-lang="en" onclick="setLang('en',this)">EN</button>
+      <button class="lang-btn" data-lang="hi" onclick="setLang('hi',this)">हिं</button>
+      <button class="lang-btn" data-lang="te" onclick="setLang('te',this)">తె</button>
+    </div>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="sb-avatar" id="userAvatar">U</div>
+        <div>
+          <span class="sb-username" id="userName">User</span>
+          <div class="sb-status">Online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <button class="sb-toggle" id="sbToggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+
+  <div class="main">
+    <div class="chat-header">
+      <div class="chat-title">🧠 AMIS <span class="model-badge">Llama 3.1 70B</span></div>
+      <div class="header-actions">
+        <button class="header-btn" id="ttsBtn" onclick="toggleTTS()" title="Toggle voice">🔊 Voice</button>
+        <button class="header-btn" onclick="switchView('history',document.querySelector('[data-view=history]'))">📜 History</button>
+      </div>
+    </div>
+
+    <!-- CHAT VIEW -->
+    <div class="view active" id="chatView">
+      <div class="messages" id="messages">
+        <div class="welcome" id="welcome">
+          <div class="welcome-icon">🧠</div>
+          <h2>What's on your mind?</h2>
+          <p>I'm AMIS — your AI mood companion. Tell me how you're feeling and I'll find the perfect music, tips, and words for you.</p>
+          <div class="welcome-grid">
+            <button class="wc-btn" onclick="quickSend('I feel so happy and excited today!')"><span>😄</span>Happy</button>
+            <button class="wc-btn" onclick="quickSend('I am feeling really down and sad')"><span>😔</span>Sad</button>
+            <button class="wc-btn" onclick="quickSend('I am so stressed about everything')"><span>😮‍💨</span>Stressed</button>
+            <button class="wc-btn" onclick="quickSend('I feel romantic today')"><span>💕</span>Romantic</button>
+            <button class="wc-btn" onclick="quickSend('I have so much energy right now!')"><span>⚡</span>Energetic</button>
+            <button class="wc-btn" onclick="quickSend('I am so bored, nothing to do')"><span>😑</span>Bored</button>
+          </div>
+        </div>
+      </div>
+      <div class="input-area">
+        <div class="input-box">
+          <button class="input-btn" onclick="startVoice()" title="Voice input">🎤</button>
+          <textarea id="userInput" rows="1" placeholder="Message AMIS..." autocomplete="off"></textarea>
+          <button class="input-btn send-btn" id="sendBtn" onclick="sendMessage()" title="Send">↑</button>
+        </div>
+        <div class="input-footer">AMIS · NLP Mood Detection · NVIDIA Llama 3.1 · Music Therapy · Voice AI</div>
+      </div>
+    </div>
+
+    <!-- HISTORY VIEW -->
+    <div class="view" id="historyView">
+      <div class="view-scroll">
+        <div class="view-header">
+          <div class="view-title">📜 Chat History</div>
+          <button class="clear-btn" onclick="clearHistory()">🗑 Clear All</button>
+        </div>
+        <div class="hist-list" id="histList"><p class="empty-msg">No conversations yet...</p></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div class="view" id="settingsView">
+      <div class="view-scroll">
+        <div class="view-header"><div class="view-title">⚙️ Settings</div></div>
+        <div class="settings-grid">
+          <div class="setting-card">
+            <div class="setting-info"><h4>🔊 Voice Output (TTS)</h4><p>Let AMIS read responses aloud</p></div>
+            <button class="toggle on" id="ttsToggle" onclick="toggleTTS()"></button>
+          </div>
+          <div class="setting-card">
+            <div class="setting-info"><h4>🌐 Language</h4><p>English · Hinglish · Tenglish</p></div>
+            <div style="display:flex;gap:6px">
+              <button class="lang-btn active" data-lang="en" onclick="setLang('en',this)">English</button>
+              <button class="lang-btn" data-lang="hi" onclick="setLang('hi',this)">Hinglish</button>
+              <button class="lang-btn" data-lang="te" onclick="setLang('te',this)">Tenglish</button>
+            </div>
+          </div>
+          <div class="setting-card">
+            <div class="setting-info"><h4>🗑 Clear History</h4><p>Delete all chat records permanently</p></div>
+            <button class="clear-btn" onclick="clearHistory()">Delete All</button>
+          </div>
+          <div class="setting-card">
+            <div class="setting-info"><h4>🎵 Spotify Connection</h4><p>Play full songs via Spotify Premium</p></div>
+            <button id="spotifyBtn" class="clear-btn" style="background:#1ed760;color:#000" onclick="window.location.href='/spotify_login'">Connect Spotify</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+let currentLang='en',ttsEnabled=true,isFirstMsg=true,selectedVoice=null;
+window.spotifyToken = null;
+
+// Check Spotify Token (for embed widgets only, no SDK needed)
+fetch('/api/spotify/token').then(r=>r.json()).then(d=>{
+  if(d.token) {
+    window.spotifyToken = d.token;
+    const btn = document.getElementById('spotifyBtn');
+    if(btn){ btn.textContent = 'Spotify Connected'; btn.style.opacity = '0.5'; btn.disabled = true; }
+  }
+}).catch(e=>console.log('Spotify check:', e));
+
+const MC={happy:'#FFD700',sad:'#4A90D9',stressed:'#FF6B35',angry:'#FF0000',romantic:'#FF69B4',energetic:'#00FF00',chill:'#00CED1',nostalgic:'#C08552',confident:'#FF4500',bored:'#808080'};
+const ME={happy:'😄',sad:'😔',stressed:'😮‍💨',angry:'😤',romantic:'💕',energetic:'⚡',chill:'😌',nostalgic:'🕰️',confident:'👑',bored:'😑'};
+const TIPS={happy:['Share your joy with someone today!','Gratitude amplifies happiness — write 3 things.','Smile more, it boosts endorphins!'],sad:['It is okay to not be okay. Be gentle with yourself.','Try journaling your feelings — it helps process them.','Reach out to a friend, connection heals.'],stressed:['Try 4-7-8 breathing: inhale 4s, hold 7s, exhale 8s.','Take a 10 minute screen break right now.','Write your worries down and rank by importance.'],angry:['Count to 10 before reacting.','Physical exercise channels anger constructively.','Write an unsent letter to express your feelings.'],romantic:['Plan a surprise for someone you love.','Write a heartfelt note — old school works best.','Create a shared playlist with your partner.'],energetic:['Channel this energy into a workout!','Start that project you have been putting off.','Dance it out — your body will thank you.'],chill:['Perfect time for meditation or deep breathing.','Read a book or listen to an audiobook.','Enjoy a warm drink and just be present.'],nostalgic:['Create a memory collage or scrapbook.','Call an old friend you have not spoken to.','Listen to songs from your childhood.'],confident:['Set a bold new goal today.','Mentor someone who could use your guidance.','Document this feeling — read it on tough days.'],bored:['Learn something new — a language, instrument, or recipe.','Go for a walk somewhere you have never been.','Start a creative project — drawing, writing, coding.']};
+
+// ═══ FEMININE VOICE (Mrunal Thakur style) ═══
+function loadVoices(){
+  const voices=speechSynthesis.getVoices();
+  const langCode={en:'en',hi:'hi',te:'te'}[currentLang]||'en';
+  // Priority: find female Indian voice, then any female, then any matching lang
+  const feminine=['female','woman','girl','zira','samantha','veena','lekha','rishi','google','priya','aditi','neerja','moira'];
+  let best=null;
+  for(const v of voices){
+    const nm=v.name.toLowerCase(),ln=v.lang.toLowerCase();
+    if(ln.startsWith(langCode)){
+      if(!best)best=v;
+      if(feminine.some(f=>nm.includes(f))){best=v;break;}
+    }
+  }
+  if(!best){
+    for(const v of voices){
+      if(feminine.some(f=>v.name.toLowerCase().includes(f))){best=v;break;}
+    }
+  }
+  selectedVoice=best||voices[0]||null;
+}
+if(typeof speechSynthesis!=='undefined'){
+  speechSynthesis.onvoiceschanged=loadVoices;
+  loadVoices();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  fetch('/api/user').then(r=>r.json()).then(u=>{
+    document.getElementById('userName').textContent=u.username;
+    document.getElementById('userAvatar').textContent=u.username[0].toUpperCase();
+  }).catch(()=>{});
+  const ta=document.getElementById('userInput');
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
+  ta.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+});
+
+function switchView(name,btn){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.sb-item[data-view]').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(name+'View');
+  if(el)el.classList.add('active');
+  if(btn)btn.classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+  if(name==='history')loadHistory();
+}
+
+function sendMessage(){
+  const ta=document.getElementById('userInput');
+  const text=ta.value.trim();
+  if(!text)return;
+  lastUserMessage=text;
+  if(isFirstMsg){const w=document.getElementById('welcome');if(w)w.remove();isFirstMsg=false;}
+  appendMsg(text,'user');
+  ta.value='';ta.style.height='auto';
+  document.getElementById('sendBtn').disabled=true;
+  const typ=showTyping();
+  fetch('/api/mood',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,lang:currentLang})})
+  .then(r=>r.json())
+  .then(data=>{
+    setTimeout(()=>{
+      typ.remove();
+      currentMood=data.mood||'happy';
+      appendBotMsg(data);
+      speakText(data.response);
+      document.getElementById('sendBtn').disabled=false;
+      document.getElementById('userInput').focus();
+    },400+Math.random()*400);
+  })
+  .catch(err=>{
+    console.error('Chat error:',err);
+    typ.remove();
+    appendMsg('Something went wrong. Please try again.','bot');
+    document.getElementById('sendBtn').disabled=false;
+  });
+}
+
+function quickSend(t){document.getElementById('userInput').value=t;sendMessage();}
+
+function appendMsg(text,sender){
+  const msgs=document.getElementById('messages');
+  const div=document.createElement('div');div.className='msg '+sender;
+  const av=sender==='user'?(document.getElementById('userAvatar').textContent||'U'):'✦';
+  div.innerHTML=`<div class="msg-inner"><div class="msg-avatar">${esc(av)}</div><div class="msg-content"><div class="msg-name">${sender==='user'?'You':'AMIS'}</div><div class="msg-text">${esc(text)}</div></div></div>`;
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+
+
+
+
+function appendBotMsg(d){
+  const msgs=document.getElementById('messages');
+  const div=document.createElement('div');div.className='msg bot';
+  const c=MC[d.mood]||'#888',em=ME[d.mood]||'🎵';
+  const energyPct=Math.round((d.energy||0)*100);
+  const tip=(TIPS[d.mood]||TIPS.happy)[Math.floor(Math.random()*(TIPS[d.mood]||TIPS.happy).length)];
+
+  let extras='';
+  if(d.mood){
+    extras+=`<div class="mood-card">
+      <span class="mood-tag" style="color:${c};border-color:${c}40;background:${c}12">${em} ${d.mood}</span>
+      <div class="energy-bar"><span>⚡ Energy</span><div class="energy-track"><div class="energy-fill" style="width:${energyPct}%;background:linear-gradient(90deg,${c},${c}88)"></div></div><span>${energyPct}%</span></div>
+    </div>`;
+    extras+=`<div class="tip-card"><span class="tip-icon">🧘</span><span>${esc(tip)}</span></div>`;
+  }
+  
+  if(d.song && d.song.sp && d.song.sp.length > 5) {
+    extras+=`<div style="margin-top:12px;border-radius:12px;overflow:hidden">
+      <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/${d.song.sp}?utm_source=generator&theme=0" width="100%" height="152" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+    </div>`;
+    extras+=`<button onclick="changeSong()" style="margin-top:8px;padding:8px 18px;background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.25);border-radius:20px;color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(167,139,250,.25)'" onmouseout="this.style.background='rgba(167,139,250,.12)'">🔄 Change Song</button>`;
+  } else if(d.song) {
+    extras+=`<div style="margin-top:12px;border-radius:12px;overflow:hidden;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08);padding:14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">🎵</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:#fff">${esc(d.song.title)}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:2px">${d.mood} vibes</div>
+      </div>
+    </div>`;
+  }
+  if(d.spotify_link){
+    extras+=`<a href="${d.spotify_link}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:8px 16px;background:rgba(30,215,96,.1);border:1px solid rgba(30,215,96,.2);border-radius:20px;color:#1ed760;font-size:12px;font-weight:600;text-decoration:none;transition:all .2s" onmouseover="this.style.background='rgba(30,215,96,.2)'" onmouseout="this.style.background='rgba(30,215,96,.1)'">🎧 Open Full ${esc(d.spotify_label||'English')} Playlist</a>`;
+  }
+
+  div.innerHTML=`<div class="msg-inner"><div class="msg-avatar">✦</div><div class="msg-content"><div class="msg-name">AMIS</div><div class="msg-text">${esc(d.response)}</div>${extras}</div></div>`;
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;
+}
+
+function showTyping(){
+  const msgs=document.getElementById('messages');
+  const div=document.createElement('div');div.className='msg bot';
+  div.innerHTML=`<div class="msg-inner"><div class="msg-avatar">✦</div><div class="msg-content"><div class="msg-name">AMIS</div><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+  msgs.appendChild(div);msgs.scrollTop=msgs.scrollHeight;return div;
+}
+
+function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+
+// Fallback when Spotify search fails
+function fallbackPlayer(elId, d){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const link = d.spotify_link || '#';
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:10px;padding:14px">
+    <span style="font-size:22px">🎵</span>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:600;color:#fff">${esc(d.song.title)}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.45);margin-top:2px">${d.mood||''} vibes</div>
+    </div>
+    <a href="${link}" target="_blank" rel="noopener" style="padding:8px 16px;background:#1ed760;border-radius:20px;color:#000;font-size:12px;font-weight:700;text-decoration:none">Open on Spotify</a>
+  </div>`;
+}
+
+
+
+
+// ═══ TTS (Mrunal Thakur style warm feminine voice) ═══
+function toggleTTS(){
+  ttsEnabled=!ttsEnabled;
+  document.getElementById('ttsBtn').textContent=ttsEnabled?'🔊 Voice':'🔇 Muted';
+  const t=document.getElementById('ttsToggle');if(t)t.classList.toggle('on',ttsEnabled);
+  if(!ttsEnabled)speechSynthesis.cancel();
+  toast(ttsEnabled?'Voice enabled':'Voice muted');
+}
+function speakText(text,onDone){
+  if(!ttsEnabled||!text||typeof speechSynthesis==='undefined'){if(onDone)onDone();return;}
+  let clean=text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu,' ').replace(/[—–]/g,', ').replace(/[:;]/g,'.').replace(/\s+/g,' ').trim();
+  speechSynthesis.cancel();
+  loadVoices();
+  const u=new SpeechSynthesisUtterance(clean);
+  // Warm feminine voice tuning
+  const moodVoice={happy:{pitch:1.15,rate:0.95},sad:{pitch:0.88,rate:0.82},stressed:{pitch:1.0,rate:0.85},angry:{pitch:1.1,rate:0.95},romantic:{pitch:1.08,rate:0.82},energetic:{pitch:1.2,rate:1.0},chill:{pitch:0.95,rate:0.8},nostalgic:{pitch:0.92,rate:0.82},confident:{pitch:1.1,rate:0.92},bored:{pitch:0.9,rate:0.85}};
+  const tune=moodVoice[currentMood]||{pitch:1.05,rate:0.9};
+  if(selectedVoice)u.voice=selectedVoice;
+  u.pitch=tune.pitch;u.rate=tune.rate;u.volume=0.95;
+  u.lang={en:'en-US',hi:'hi-IN',te:'te-IN'}[currentLang]||'en-US';
+  u.onend=()=>{if(onDone)onDone();};
+  u.onerror=()=>{if(onDone)onDone();};
+  speechSynthesis.speak(u);
+}
+let currentMood='happy';
+let lastUserMessage='';
+
+// ═══ CHANGE SONG ═══
+function changeSong(){
+  toast('🔄 Finding another song...');
+  fetch('/api/change-song',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mood:currentMood,lang:currentLang})})
+  .then(r=>r.json())
+  .then(data=>{
+    if(data.song && data.song.sp && data.song.sp.length > 5){
+      const allMsgs = document.querySelectorAll('.msg.bot');
+      const lastBot = allMsgs[allMsgs.length-1];
+      if(lastBot){
+        const iframeEl = lastBot.querySelector('iframe');
+        if(iframeEl){
+          iframeEl.src = `https://open.spotify.com/embed/track/${data.song.sp}?utm_source=generator&theme=0`;
+          toast('🎵 Now playing: ' + data.song.title);
+        }
+      }
+    }
+  }).catch(()=>toast('Could not change song'));
+}
+
+// ═══ VOICE INPUT ═══
+function startVoice(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){toast('Voice not supported');return;}
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const r=new SR();r.lang={en:'en-US',hi:'hi-IN',te:'te-IN'}[currentLang]||'en-US';
+  r.interimResults=false;
+  r.onresult=e=>{document.getElementById('userInput').value=e.results[0][0].transcript;sendMessage();};
+  r.onerror=()=>toast('Voice input failed');
+  r.start();toast('🎤 Listening...');
+}
+
+// ═══ LANGUAGE ═══
+function setLang(lang,btn){
+  currentLang=lang;
+  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+  document.getElementById('userInput').placeholder={en:'Message AMIS...',hi:'AMIS को संदेश भेजें...',te:'AMIS కి మెసేజ్ చేయండి...'}[lang]||'Message AMIS...';
+  document.getElementById('sidebar').classList.remove('open');
+  selectedVoice=null;loadVoices();
+  toast('Language: '+{en:'English',hi:'Hinglish',te:'Tenglish'}[lang]);
+}
+
+// ═══ HISTORY ═══
+function loadHistory(){
+  fetch('/api/history').then(r=>r.json()).then(data=>{
+    const el=document.getElementById('histList');
+    if(!data.length){el.innerHTML='<p class="empty-msg">No conversations yet...</p>';return;}
+    el.innerHTML=data.map(i=>{
+      const t=new Date(i.timestamp).toLocaleString('en-IN',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'});
+      const c=MC[i.mood]||'#888';
+      return `<div class="hist-item"><div class="hist-msg">${esc(i.message)}</div><div class="hist-meta"><span class="hist-mood" style="color:${c};background:${c}15">${ME[i.mood]||''} ${i.mood}</span><span>🎵 ${esc(i.song)}</span><span>${t}</span></div></div>`;
+    }).join('');
+  }).catch(()=>{});
+}
+function clearHistory(){
+  if(!confirm('Delete all chat history?'))return;
+  fetch('/api/clear-history',{method:'POST'}).then(()=>{loadHistory();toast('History cleared');}).catch(()=>{});
+}
+
+function newChat(){location.reload();}
+function doLogout(){window.location.href='/logout';}
+
+// ═══ TOAST ═══
+function toast(msg){
+  const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'),2000);
+}
+</script>
+</body>
+</html>

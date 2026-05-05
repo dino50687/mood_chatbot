@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMIS - AI Mood Intelligence System</title>
+    
+    <!-- Three.js Import Map -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.183.2/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.183.2/examples/jsm/"
+        }
+    }
+    </script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0015;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #three-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .ui-overlay > * {
+            pointer-events: auto;
+        }
+        
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: linear-gradient(180deg, rgba(10,0,21,0.9) 0%, rgba(10,0,21,0.3) 100%);
+            backdrop-filter: blur(10px);
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .brand-icon {
+            font-size: 28px;
+            animation: pulseGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes pulseGlow {
+            0%, 100% { filter: drop-shadow(0 0 10px rgba(123,47,247,0.3)); }
+            50% { filter: drop-shadow(0 0 25px rgba(255,107,255,0.6)); }
+        }
+        
+        .brand-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff6bff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 2px;
+        }
+        
+        .brand-sub {
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 3px;
+            margin-left: 4px;
+        }
+        
+        .top-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .mood-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.06);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .mood-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #7b2ff7;
+            box-shadow: 0 0 15px #7b2ff7;
+            transition: all 0.5s ease;
+        }
+        
+        .mood-label {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
+        }
+        
+        .mood-emoji-display {
+            font-size: 20px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.5);
+        }
+        
+        .logout-btn {
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,59,48,0.2);
+            border-color: rgba(255,59,48,0.3);
+            color: #ff6b6b;
+        }
+        
+        /* Main Content Area */
+        .main-area {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 0 24px 20px 24px;
+        }
+        
+        /* Chat Panel */
+        .chat-panel {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(10, 0, 21, 0.75);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+            max-height: 55vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 20px;
+            min-height: 150px;
+            max-height: 350px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.15);
+            border-radius: 2px;
+        }
+        
+        .message {
+            margin-bottom: 14px;
+            display: flex;
+            gap: 10px;
+            animation: messageIn 0.4s ease;
+        }
+        
+        @keyframes messageIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #7b2ff7, #ff6bff);
+        }
+        
+        .message.bot .message-avatar {
+            background: linear-gradient(135deg, #00d4ff, #7b2ff7);
+        }
+        
+        .message-content {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 85%;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        .message.user .message-content {
+            background: rgba(123, 47, 247, 0.15);
+            border-color: rgba(123, 47, 247, 0.2);
+        }
+        
+        .message.bot .message-content {
+            background: rgba(0, 212, 255, 0.08);
+            border-color: rgba(0, 212, 255, 0.12);
+        }
+        
+        .message-content .msg-emoji {
+            font-size: 18px;
+            margin-right: 4px;
+        }
+        
+        .message-content .msg-time {
+            font-size: 10px;
+            color: rgba(255,255,255,0.25);
+            margin-top: 4px;
+            display: block;
+        }
+        
+        .message-content .msg-song {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+            padding: 4px 10px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 6px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .message-content .msg-song:hover {
+            background: rgba(0, 212, 255, 0.15);
+            color: #00d4ff;
+        }
+        
+        .typing-indicator {
+            display: none;
+            padding: 8px 20px;
+            gap: 4px;
+            align-items: center;
+            color: rgba(255,255,255,0.3);
+            font-size: 13px;
+        }
+        
+        .typing-indicator.active {
+            display: flex;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .typing-dots span {
+            width: 6px;
+            height: 6px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite;
+        }
+        
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        
+        @keyframes typingBounce {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-6px); }
+        }
+        
+        /* Chat Input */
+        .chat-input-area {
+            display: flex;
+            padding: 12px 16px;
+            gap: 8px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            background: rgba(10,0,21,0.5);
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .chat-input:focus {
+            border-color: #7b2ff7;
+            box-shadow: 0 0 15px rgba(123, 47, 247, 0.15);
+        }
+        
+        .chat-input::placeholder {
+            color: rgba(255,255,255,0.2);
+        }
+        
+        .btn-send {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #7b2ff7, #ff6bff);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-send:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(123, 47, 247, 0.4);
+        }
+        
+        .btn-voice {
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: rgba(255,255,255,0.5);
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-voice:hover {
+            background: rgba(0, 212, 255, 0.1);
+            border-color: rgba(0, 212, 255, 0.2);
+        }
+        
+        .btn-voice.listening {
+            background: rgba(255, 59, 48, 0.2);
+            border-color: rgba(255, 59, 48, 0.3);
+            animation: pulseRed 1.5s infinite;
+        }
+        
+        @keyframes pulseRed {
+            0%, 100% { box-shadow: 0 0 0 rgba(255,59,48,0); }
+            50% { box-shadow: 0 0 15px rgba(255,59,48,0.3); }
+        }
+        
+        /* Music Player Bar */
+        .music-bar {
+            display: none;
+            padding: 10px 16px;
+            background: rgba(0, 212, 255, 0.06);
+            border-top: 1px solid rgba(0, 212, 255, 0.08);
+            align-items: center;
+            gap: 12px;
+            animation: slideUp 0.4s ease;
+        }
+        
+        .music-bar.active {
+            display: flex;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .music-bar .now-playing {
+            font-size: 12px;
+            color: rgba(255,255,255,0.4);
+            min-width: 60px;
+        }
+        
+        .music-bar .song-title {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.8);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .music-bar audio {
+            height: 32px;
+            flex: 1;
+            max-width: 250px;
+        }
+        
+        .music-bar audio::-webkit-media-controls-panel {
+            background: rgba(0, 212, 255, 0.05);
+        }
+        
+        .music-close {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.3);
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+            transition: color 0.3s;
+        }
+        
+        .music-close:hover {
+            color: #ff6b6b;
+        }
+        
+        /* Frequency Display */
+        .frequency-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 4px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 1px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            .top-bar { padding: 12px 16px; flex-wrap: wrap; gap: 8px; }
+            .brand-text { font-size: 14px; }
+            .mood-indicator { padding: 4px 10px; }
+            .chat-panel { max-height: 60vh; border-radius: 16px 16px 0 0; }
+            .main-area { padding: 0 0 0 0; }
+            .chat-panel { max-width: 100%; border-radius: 0; }
+            .music-bar { flex-wrap: wrap; }
+            .music-bar audio { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Three.js 3D Container -->
+    <div id="three-container"></div>
+    
+    <!-- UI Overlay -->
+    <div class="ui-overlay">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="brand">
+                <span class="brand-icon">??</span>
+                <div>
+                    <span class="brand-text">AMIS</span>
+                    <span class="brand-sub">AI MOOD INTELLIGENCE</span>
+                </div>
+            </div>
+            <div class="top-right">
+                <div class="mood-indicator">
+                    <span class="mood-dot" id="moodDot"></span>
+                    <span class="mood-label" id="moodLabel">Analyzing...</span>
+                    <span class="mood-emoji-display" id="moodEmoji">??</span>
+                    <span class="frequency-badge" id="freqBadge">Hz</span>
+                </div>
+                <div class="user-info">
+                    <span id="usernameDisplay"></span>
+                    <a href="/logout" class="logout-btn">Exit</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Area (Chat) -->
+        <div class="main-area">
+            <div class="chat-panel">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot">
+                        <div class="message-avatar" style="background:linear-gradient(135deg,#00d4ff,#7b2ff7)">??</div>
+                        <div class="message-content">
+                            <span class="msg-emoji">??</span>
+                            Hey there, I'm AMIS ? your AI Mood Intelligence System. I can sense your mood, play music that matches your energy, and I even speak out loud! Tell me how you're feeling...<br>
+                            <span class="msg-time">just now</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="typing-indicator" id="typingIndicator">
+                    <span>AMIS is thinking</span>
+                    <div class="typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+                <div class="music-bar" id="musicBar">
+                    <span class="now-playing">?? Now Playing</span>
+                    <span class="song-title" id="songTitle">Song Name</span>
+                    <audio id="audioPlayer" controls controlsList="nodownload noremoteplayback"></audio>
+                    <button class="music-close" onclick="closeMusic()">?</button>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="Tell me how you're feeling..." autofocus>
+                    <button class="btn-voice" id="voiceBtn" onclick="toggleVoiceInput()" title="Voice input">??</button>
+                    <button class="btn-send" onclick="sendMessage()">?</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        // ================================================================
+        // THREE.JS 3D AVATAR & PARTICLE SYSTEM
+        // ================================================================
+        import * as THREE from 'three';
+        // Note: OrbitControls not used in final implementation to avoid errors
+        
+        const container = document.getElementById('three-container');
+        if (!container) {
+            console.error('Three.js container not found');
+            alert('3D graphics initialization failed. Please refresh the page.');
+        }
+        
+        const scene = new THREE.Scene();
+        
+        // Camera
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.5, 4.5);
+        camera.lookAt(0, 1.0, 0);
+        
+        // Renderer with error handling
+        let renderer;
+        try {
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+        } catch (error) {
+            console.error('WebGL renderer initialization failed:', error);
+            alert('Your browser doesn\'t support WebGL 3D graphics. Please try a modern browser.');
+            return;
+        }
+        
+        // ================================================================
+        // LIGHTS
+        // ================================================================
+        const ambientLight = new THREE.AmbientLight(0x222244, 0.4);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.DirectionalLight(0xff6bff, 1.5);
+        mainLight.position.set(2, 4, 3);
+        scene.add(mainLight);
+        
+        const fillLight = new THREE.DirectionalLight(0x00d4ff, 0.8);
+        fillLight.position.set(-2, 2, 2);
+        scene.add(fillLight);
+        
+        const rimLight = new THREE.DirectionalLight(0x7b2ff7, 0.6);
+        rimLight.position.set(0, -1, -3);
+        scene.add(rimLight);
+        
+        // ================================================================
+        // PROCEDURAL 3D CHARACTER (No external model needed)
+        // ================================================================
+        const character = new THREE.Group();
+        
+        // Body (torso)
+        const bodyGeo = new THREE.CylinderGeometry(0.45, 0.5, 0.9, 12);
+        const bodyMat = new THREE.MeshPhysicalMaterial({
+            color: 0x7b2ff7,
+            metalness: 0.3,
+            roughness: 0.4,
+            emissive: 0x7b2ff7,
+            emissiveIntensity: 0.05,
+            clearcoat: 0.3,
+            clearcoatRoughness: 0.4
+        });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.6;
+        character.add(body);
+        
+        // Head
+        const headGeo = new THREE.SphereGeometry(0.32, 16, 16);
+        const headMat = new THREE.MeshPhysicalMaterial({
+            color: 0xe8b4c8,
+            metalness: 0.1,
+            roughness: 0.3,
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.3
+        });
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 1.25;
+        character.add(head);
+        
+        // Hair (a stylized cap)
+        const hairGeo = new THREE.SphereGeometry(0.33, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2.5);
+        const hairMat = new THREE.MeshPhysicalMaterial({
+            color: 0x2d1b69,
+            metalness: 0.2,
+            roughness: 0.6,
+        });
+        const hair = new THREE.Mesh(hairGeo, hairMat);
+        hair.position.y = 1.28;
+        hair.scale.y = 0.9;
+        character.add(hair);
+        
+        // Eyes
+        function createEye(color) {
+            const eyeGeo = new THREE.SphereGeometry(0.07, 8, 8);
+            const eyeMat = new THREE.MeshPhysicalMaterial({
+                color: color,
+                metalness: 0.0,
+                roughness: 0.1,
+                emissive: color,
+                emissiveIntensity: 0.3
+            });
+            return new THREE.Mesh(eyeGeo, eyeMat);
+        }
+        
+        const leftEye = createEye(0x00d4ff);
+        leftEye.position.set(-0.12, 1.32, 0.28);
+        character.add(leftEye);
+        
+        const rightEye = createEye(0x00d4ff);
+        rightEye.position.set(0.12, 1.32, 0.28);
+        character.add(rightEye);
+        
+        // Eye glow pupils
+        const pupilMat = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.5
+        });
+        const pupilGeo = new THREE.SphereGeometry(0.035, 8, 8);
+        
+        const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+        leftPupil.position.set(-0.12, 1.32, 0.33);
+        character.add(leftPupil);
+        
+        const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
+        rightPupil.position.set(0.12, 1.32, 0.33);
+        character.add(rightPupil);
+        
+        // Mouth (a torus for expression)
+        const mouthGeo = new THREE.TorusGeometry(0.08, 0.015, 6, 12, Math.PI);
+        const mouthMat = new THREE.MeshPhysicalMaterial({
+            color: 0xd4739a,
+            emissive: 0xd4739a,
+            emissiveIntensity: 0.1
+        });
+        const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+        mouth.position.set(0, 1.14, 0.28);
+        mouth.rotation.x = 0.1;
+        character.add(mouth);
+        
+        // Neck
+        const neckGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.1, 8);
+        const neckMat = new THREE.MeshPhysicalMaterial({
+            color: 0xe8b4c8,
+            roughness: 0.4
+        });
+        const neck = new THREE.Mesh(neckGeo, neckMat);
+        neck.position.y = 1.0;
+        character.add(neck);
+        
+        // Shoulders/Arm Base
+        function createArm(side) {
+            const armGroup = new THREE.Group();
+            const armGeo = new THREE.CylinderGeometry(0.06, 0.08, 0.5, 8);
+            const armMat = new THREE.MeshPhysicalMaterial({
+                color: 0x7b2ff7,
+                metalness: 0.2,
+                roughness: 0.5
+            });
+            const arm = new THREE.Mesh(armGeo, armMat);
+            arm.position.y = -0.25;
+            armGroup.add(arm);
+            return armGroup;
+        }
+        
+        const leftArm = createArm(-1);
+        leftArm.position.set(-0.5, 0.95, 0);
+        leftArm.rotation.z = 0.2;
+        leftArm.rotation.x = -0.3;
+        character.add(leftArm);
+        
+        const rightArm = createArm(1);
+        rightArm.position.set(0.5, 0.95, 0);
+        rightArm.rotation.z = -0.2;
+        rightArm.rotation.x = 0.3;
+        character.add(rightArm);
+        
+        // Floating orb around character
+        const orbGeo = new THREE.SphereGeometry(0.03, 8, 8);
+        const orbMat = new THREE.MeshPhysicalMaterial({
+            color: 0x7b2ff7,
+            emissive: 0x7b2ff7,
+            emissiveIntensity: 1.0,
+            transparent: true,
+            opacity: 0.8
+        });
+        const orbs = [];
+        for (let i = 0; i < 8; i++) {
+            const orb = new THREE.Mesh(orbGeo, orbMat.clone());
+            const angle = (i / 8) * Math.PI * 2;
+            const radius = 0.7 + Math.random() * 0.3;
+            orb.position.set(
+                Math.cos(angle) * radius,
+                0.8 + Math.sin(angle * 2) * 0.3,
+                Math.sin(angle) * radius
+            );
+            orb.userData = { angle, radius, speed: 0.5 + Math.random() * 0.5, offset: Math.random() * 10 };
+            character.add(orb);
+            orbs.push(orb);
+        }
+        
+        scene.add(character);
+        
+        // ================================================================
+        // PARTICLE SYSTEM (Mood-reactive background)
+        // ================================================================
+        const particleCount = 2000;
+        const particleGeo = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
+        const colors = new Float32Array(particleCount * 3);
+        
+        for (let i = 0; i < particleCount; i++) {
+            const radius = 3 + Math.random() * 5;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            
+            positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+            positions[i * 3 + 1] = radius * Math.cos(phi) * 0.5 + 1.0;
+            positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+            
+            sizes[i] = 0.01 + Math.random() * 0.03;
+            
+            const c = new THREE.Color().setHSL(0.7 + Math.random() * 0.15, 0.8, 0.4 + Math.random() * 0.3);
+            colors[i * 3] = c.r;
+            colors[i * 3 + 1] = c.g;
+            colors[i * 3 + 2] = c.b;
+        }
+        
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particleGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        particleGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        
+        const particleMat = new THREE.PointsMaterial({
+            size: 0.03,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.6,
+            blending: THREE.AdditiveBlending,
+            sizeAttenuation: true
+        });
+        
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+        
+        // ================================================================
+        // GROUND RING
+        // ================================================================
+        const ringGeo = new THREE.RingGeometry(0.7, 0.9, 48);
+        const ringMat = new THREE.MeshPhysicalMaterial({
+            color: 0x7b2ff7,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.DoubleSide,
+            emissive: 0x7b2ff7,
+            emissiveIntensity: 0.1
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = 0.05;
+        scene.add(ring);
+        
+        const ring2 = new THREE.RingGeometry(1.0, 1.1, 48);
+        const ringMat2 = ringMat.clone();
+        const ring2Mesh = new THREE.Mesh(ring2, ringMat2);
+        ring2Mesh.rotation.x = -Math.PI / 2;
+        ring2Mesh.position.y = 0.03;
+        scene.add(ring2Mesh);
+        
+        // ================================================================
+        // STATE
+        // ================================================================
+        let currentMood = 'neutral';
+        let currentColor = new THREE.Color(0x7b2ff7);
+        let targetColor = new THREE.Color(0x7b2ff7);
+        let headBobTime = 0;
+        let isSpeaking = false;
+        let speakIntensity = 0;
+        
+        // ================================================================
+        // EXPORT FOR GLOBAL ACCESS
+        // ================================================================
+        window.__amis3d = {
+            setMood: (mood, color, energy) => {
+                currentMood = mood;
+                targetColor = new THREE.Color(color);
+                // Update particles
+                const colorsAttr = particles.geometry.attributes.color;
+                const array = colorsAttr.array;
+                const baseHue = new THREE.Color(color).getHSL({}).h;
+                for (let i = 0; i < particleCount; i++) {
+                    const h = baseHue + (Math.random() - 0.5) * 0.15;
+                    const c = new THREE.Color().setHSL((h + 1) % 1, 0.8, 0.4 + energy * 0.3);
+                    array[i * 3] = c.r;
+                    array[i * 3 + 1] = c.g;
+                    array[i * 3 + 2] = c.b;
+                }
+                colorsAttr.needsUpdate = true;
+                
+                // Update ring colors
+                ringMat.color.set(color);
+                ringMat.emissive.set(color);
+                ringMat2.color.set(color);
+                ringMat2.emissive.set(color);
+            },
+            setSpeaking: (speaking) => {
+                isSpeaking = speaking;
+            }
+        };
+        
+        // ================================================================
+        // ANIMATION LOOP
+        // ================================================================
+        function animate(time) {
+            requestAnimationFrame(animate);
+            
+            const t = time * 0.001;
+            
+            // Smooth color transition
+            currentColor.lerp(targetColor, 0.02);
+            
+            // Character floating
+            character.position.y = Math.sin(t * 1.2) * 0.03;
+            character.rotation.y = Math.sin(t * 0.3) * 0.1;
+            
+            // Breathing animation (body scale)
+            const breathe = 1 + Math.sin(t * 1.5) * 0.008;
+            body.scale.y = breathe;
+            body.scale.x = 1 + Math.sin(t * 1.5 + 0.5) * 0.005;
+            
+            // Head slight tilt
+            head.rotation.z = Math.sin(t * 0.5) * 0.03;
+            head.rotation.x = Math.sin(t * 0.7 + 0.3) * 0.02;
+            
+            // Eye look-around
+            const eyeLookX = Math.sin(t * 0.4) * 0.02;
+            const eyeLookY = Math.sin(t * 0.3 + 1) * 0.02;
+            leftPupil.position.x = -0.12 + eyeLookX;
+            leftPupil.position.y = 1.32 + eyeLookY;
+            rightPupil.position.x = 0.12 + eyeLookX;
+            rightPupil.position.y = 1.32 + eyeLookY;
+            
+            // Eye glow pulse
+            const glowIntensity = 0.3 + Math.sin(t * 2) * 0.15 + (isSpeaking ? 0.2 : 0);
+            leftEye.material.emissiveIntensity = glowIntensity;
+            rightEye.material.emissiveIntensity = glowIntensity;
+            
+            // Mouth animation for speaking
+            if (isSpeaking) {
+                speakIntensity += (0.5 - speakIntensity) * 0.1;
+                mouth.scale.y = 1 + Math.sin(t * 20) * speakIntensity * 0.3;
+                mouth.scale.x = 1 + Math.cos(t * 15) * speakIntensity * 0.15;
+            } else {
+                speakIntensity *= 0.95;
+                mouth.scale.y += (1 - mouth.scale.y) * 0.05;
+                mouth.scale.x += (1 - mouth.scale.x) * 0.05;
+            }
+            
+            // Orbital particles
+            orbs.forEach((orb, i) => {
+                const data = orb.userData;
+                data.angle += 0.01 * data.speed;
+                const r = data.radius + Math.sin(t * data.speed + data.offset) * 0.1;
+                orb.position.x = Math.cos(data.angle + t * 0.3) * r;
+                orb.position.z = Math.sin(data.angle + t * 0.3) * r;
+                orb.position.y = 0.8 + Math.sin(data.angle * 2 + t + data.offset) * 0.3;
+                orb.material.color.lerp(currentColor, 0.02);
+                orb.material.emissive.lerp(currentColor, 0.02);
+            });
+            
+            // Particle rotation
+            particles.rotation.y = t * 0.015;
+            particles.rotation.x = Math.sin(t * 0.01) * 0.02;
+            
+            // Ring pulse
+            const ringPulse = 1 + Math.sin(t * 1.5) * 0.02;
+            ring.scale.set(ringPulse, ringPulse, ringPulse);
+            ring.material.opacity = 0.08 + Math.sin(t * 1.5) * 0.03;
+            ringMat.color.lerp(currentColor, 0.02);
+            
+            ring2Mesh.scale.set(1 + Math.sin(t * 1.2 + 1) * 0.03, 1 + Math.sin(t * 1.2 + 1) * 0.03, 1);
+            
+            // Camera gentle sway
+            camera.position.x = Math.sin(t * 0.08) * 0.3;
+            camera.position.y = 1.5 + Math.sin(t * 0.1) * 0.05;
+            camera.lookAt(0, 1.0, 0);
+            
+            // Render
+            renderer.render(scene, camera);
+        }
+        
+        animate(0);
+        
+        // ================================================================
+        // RESIZE
+        // ================================================================
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        
+        // ================================================================
+        // EXPOSE FUNCTIONS GLOBALLY
+        // ================================================================
+        window.amis3d = {
+            setMood: (mood, color, energy) => {
+                if (window.__amis3d) window.__amis3d.setMood(mood, color, energy);
+            },
+            setSpeaking: (val) => {
+                if (window.__amis3d) window.__amis3d.setSpeaking(val);
+            }
+        };
+        
+        console.log('?? AMIS 3D Engine initialized');
+    </script>
+    
+    <script>
+        // ================================================================
+        // AMIS CHAT CLIENT
+        // ================================================================
+        
+        // State (some variables already declared in Three.js module)
+        let currentMoodData = {};
+        let isListening = false;
+        let recognition = null;
+        let currentSongUrl = '';
+        
+        // DOM refs with error handling
+        const chatInput = document.getElementById('chatInput');
+        const chatMessages = document.getElementById('chatMessages');
+        const typingIndicator = document.getElementById('typingIndicator');
+        const moodDot = document.getElementById('moodDot');
+        const moodLabel = document.getElementById('moodLabel');
+        const moodEmoji = document.getElementById('moodEmoji');
+        const freqBadge = document.getElementById('freqBadge');
+        const musicBar = document.getElementById('musicBar');
+        const songTitle = document.getElementById('songTitle');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const voiceBtn = document.getElementById('voiceBtn');
+
+        // Check if all DOM elements exist
+        if (!chatInput || !chatMessages || !typingIndicator || !moodDot || !moodLabel || !moodEmoji || !freqBadge || !musicBar || !songTitle || !audioPlayer || !voiceBtn) {
+            console.error('Missing DOM elements');
+            alert('Chat interface loading error. Please refresh the page.');
+        }
+        
+        // Speech Synthesis
+        let currentUtterance = null;
+        
+        // ================================================================
+        // SPEECH SYNTHESIS (AI Voice with expressions)
+        // ================================================================
+        function speakText(text, mood = 'happy') {
+            try {
+                if (!window.speechSynthesis) {
+                    console.warn('Speech synthesis not supported');
+                    return;
+                }
+                
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Configure voice based on mood
+            const moodVoiceConfig = {
+                'happy': { rate: 1.1, pitch: 1.2, volume: 1.0 },
+                'sad': { rate: 0.85, pitch: 0.8, volume: 0.8 },
+                'stressed': { rate: 0.9, pitch: 0.9, volume: 0.85 },
+                'angry': { rate: 1.0, pitch: 0.7, volume: 1.2 },
+                'romantic': { rate: 0.9, pitch: 1.1, volume: 0.9 },
+                'energetic': { rate: 1.3, pitch: 1.2, volume: 1.1 },
+                'chill': { rate: 0.8, pitch: 0.95, volume: 0.7 },
+                'nostalgic': { rate: 0.85, pitch: 0.9, volume: 0.8 },
+                'confident': { rate: 1.1, pitch: 1.0, volume: 1.1 },
+                'bored': { rate: 0.8, pitch: 0.85, volume: 0.7 }
+            };
+            
+            const config = moodVoiceConfig[mood] || { rate: 1.0, pitch: 1.0, volume: 1.0 };
+            
+            // Pick a good voice
+            const voices = window.speechSynthesis.getVoices();
+            // Prefer a female/melodic English voice
+            const preferredVoice = voices.find(v => 
+                v.lang.startsWith('en') && (v.name.includes('Google UK') || v.name.includes('Samantha') || v.name.includes('Female'))
+            ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+            
+            if (preferredVoice) utterance.voice = preferredVoice;
+            utterance.rate = config.rate;
+            utterance.pitch = config.pitch;
+            utterance.volume = config.volume;
+            
+            // Events for 3D lip sync
+            utterance.onstart = () => {
+                isSpeaking = true;
+                if (window.amis3d) window.amis3d.setSpeaking(true);
+            };
+            utterance.onend = () => {
+                isSpeaking = false;
+                if (window.amis3d) window.amis3d.setSpeaking(false);
+            };
+            utterance.onerror = () => {
+                isSpeaking = false;
+                if (window.amis3d) window.amis3d.setSpeaking(false);
+            };
+            
+                currentUtterance = utterance;
+                window.speechSynthesis.speak(utterance);
+            } catch (error) {
+                console.error('Speech synthesis error:', error);
+            }
+        }
+        
+        // Preload voices
+        if (window.speechSynthesis) {
+            window.speechSynthesis.getVoices();
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.getVoices();
+            };
+        }
+        
+        // ================================================================
+        // SPEECH RECOGNITION (Voice Input)
+        // ================================================================
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.warn('Speech recognition not supported');
+                return null;
+            }
+            
+            const recog = new SpeechRecognition();
+            recog.continuous = false;
+            recog.interimResults = false;
+            recog.lang = 'en-US';
+            
+            recog.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                chatInput.value = transcript;
+                sendMessage();
+                isListening = false;
+                voiceBtn.classList.remove('listening');
+                voiceBtn.textContent = '??';
+            };
+            
+            recog.onerror = () => {
+                isListening = false;
+                voiceBtn.classList.remove('listening');
+                voiceBtn.textContent = '??';
+                addMessage('bot', '??', "Sorry, I didn't catch that. Could you type it instead?");
+            };
+            
+            recog.onend = () => {
+                isListening = false;
+                voiceBtn.classList.remove('listening');
+                voiceBtn.textContent = '??';
+            };
+            
+            return recog;
+        }
+        
+        function toggleVoiceInput() {
+            if (!recognition) {
+                recognition = initSpeechRecognition();
+                if (!recognition) {
+                    addMessage('bot', '??', "Voice input isn't supported in your browser. Try Chrome or Edge!");
+                    return;
+                }
+            }
+            
+            if (isListening) {
+                recognition.stop();
+                isListening = false;
+                voiceBtn.classList.remove('listening');
+                voiceBtn.textContent = '??';
+            } else {
+                recognition.start();
+                isListening = true;
+                voiceBtn.classList.add('listening');
+                voiceBtn.textContent = '??';
+                addMessage('bot', '??', "Listening... speak now!");
+            }
+        }
+        
+        // ================================================================
+        // CHAT FUNCTIONS
+        // ================================================================
+        function addMessage(role, avatar, content, extra = '') {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">
+                    ${content}${extra}
+                    <span class="msg-time">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+            `;
+            chatMessages.appendChild(div);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function addSongSuggestion(song) {
+            return `<div class="msg-song" onclick="playSong('${song.url.replace(/'/g, "\\'")}', '${song.title.replace(/'/g, "\\'")}')">
+                ?? ${song.title}
+            </div>`;
+        }
+        
+        async function sendMessage() {
+            try {
+                const text = chatInput.value.trim();
+                if (!text) return;
+                
+                chatInput.value = '';
+                addMessage('user', '??', text);
+                
+                typingIndicator.classList.add('active');
+                
+                const res = await fetch('/api/mood', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                
+                const data = await res.json();
+                
+                typingIndicator.classList.remove('active');
+                
+                // Update mood UI
+                currentMood = data.mood;
+                currentMoodData = data;
+                updateMoodUI(data);
+                
+                // Update 3D scene
+                if (window.amis3d) {
+                    window.amis3d.setMood(data.mood, data.color, data.energy);
+                }
+                
+                // Build response with song
+                let responseHtml = `<span class="msg-emoji">${data.emoji}</span> ${data.response}`;
+                const songHtml = addSongSuggestion(data.song);
+                
+                addMessage('bot', '??', responseHtml, songHtml);
+                
+                // Auto-play song
+                playSong(data.song.url, data.song.title);
+                
+                // Speak the response
+                speakText(data.response, data.mood);
+                
+            } catch (err) {
+                typingIndicator.classList.remove('active');
+                addMessage('bot', '??', "Hmm, I had a little glitch. Can you try again?");
+                console.error('API error:', err);
+            }
+        }
+        
+        // ================================================================
+        // MUSIC PLAYER
+        // ================================================================
+        function playSong(url, title) {
+            currentSongUrl = url;
+            songTitle.textContent = title;
+            audioPlayer.src = url;
+            audioPlayer.play().catch(() => {});
+            musicBar.classList.add('active');
+        }
+        
+        function closeMusic() {
+            audioPlayer.pause();
+            audioPlayer.src = '';
+            musicBar.classList.remove('active');
+        }
+        
+        // ================================================================
+        // MOOD UI UPDATES
+        // ================================================================
+        function updateMoodUI(data) {
+            moodDot.style.background = data.color;
+            moodDot.style.boxShadow = `0 0 20px ${data.color}`;
+            moodLabel.textContent = data.mood.charAt(0).toUpperCase() + data.mood.slice(1);
+            moodEmoji.textContent = data.emoji;
+            freqBadge.textContent = `${data.frequency} Hz`;
+            
+            // Update chat panel border glow
+            const chatPanel = document.querySelector('.chat-panel');
+            chatPanel.style.borderColor = `${data.color}33`;
+            chatPanel.style.boxShadow = `0 10px 40px ${data.color}22`;
+        }
+        
+        // ================================================================
+        // ENTER KEY
+        // ================================================================
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        // ================================================================
+        // LOAD USER
+        // ================================================================
+        async function loadUser() {
+            try {
+                const res = await fetch('/api/user');
+                const data = await res.json();
+                document.getElementById('usernameDisplay').textContent = `?? ${data.username}`;
+            } catch (e) {}
+        }
+        
+        loadUser();
+        
+        console.log('?? AMIS Chat Client initialized');
+    </script>
+</body>
+</html>
