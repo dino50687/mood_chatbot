@@ -25,7 +25,7 @@ def get_llm_response(user_input, mood, lang='en', user_id=None):
     history_text = ""
     if user_id:
         try:
-            conn = sqlite3.connect('database.db')
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             history = c.execute("SELECT message, mood FROM mood_history WHERE user_id=? ORDER BY id DESC LIMIT 4", (user_id,)).fetchall()
             conn.close()
@@ -90,11 +90,14 @@ def get_llm_response(user_input, mood, lang='en', user_id=None):
 app = Flask(__name__)
 app.secret_key = os.urandom(24).hex()
 
+# Define DB path depending on environment (Vercel uses read-only disk except /tmp)
+DB_PATH = '/tmp/database.db' if os.environ.get('VERCEL') else 'database.db'
+
 # ============================================================
 # DATABASE SETUP
 # ============================================================
 def init_db():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -425,7 +428,7 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = hashlib.sha256(request.form.get('password', '').encode()).hexdigest()
-        conn = sqlite3.connect('database.db')
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = c.fetchone()
@@ -443,7 +446,7 @@ def register():
         username = request.form.get('username')
         password = hashlib.sha256(request.form.get('password', '').encode()).hexdigest()
         try:
-            conn = sqlite3.connect('database.db')
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             conn.commit()
@@ -502,7 +505,7 @@ def spotify_callback():
         expires_at = int(datetime.now().timestamp()) + expires_in
 
         # Save to DB
-        conn = sqlite3.connect('database.db')
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("""
             UPDATE users 
@@ -520,7 +523,7 @@ def spotify_callback():
 @login_required
 def spotify_token():
     try:
-        conn = sqlite3.connect('database.db')
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         # Check if spotify columns exist
         c.execute("PRAGMA table_info(users)")
@@ -710,7 +713,7 @@ def analyze_mood():
     lang_labels = {"en": "English", "hi": "Bollywood Hindi", "te": "Tollywood Telugu"}
     
     # Save to history
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("INSERT INTO mood_history (user_id, mood, message, song) VALUES (?, ?, ?, ?)",
               (session['user_id'], mood, message, song['title']))
@@ -733,7 +736,7 @@ def analyze_mood():
 @app.route('/api/history', methods=['GET'])
 @login_required
 def get_history():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT mood, message, song, timestamp FROM mood_history WHERE user_id=? ORDER BY timestamp DESC LIMIT 50",
               (session['user_id'],))
@@ -772,7 +775,7 @@ def change_song():
 @app.route('/api/clear-history', methods=['POST'])
 @login_required
 def clear_history():
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("DELETE FROM mood_history WHERE user_id=?", (session['user_id'],))
     conn.commit()
