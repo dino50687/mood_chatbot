@@ -74,7 +74,7 @@ def get_llm_response(user_input, mood, lang="en", user_id=None):
 
     try:
         response = requests.post(
-            invoke_url, headers=headers, json=payload, timeout=30
+            invoke_url, headers=headers, json=payload, timeout=8
         )
         response.raise_for_status()
         data = response.json()
@@ -88,7 +88,7 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24).hex()
 
 # Define DB path depending on environment (Vercel uses read-only disk except /tmp)
-DB_PATH = "/tmp/database.db" if os.environ.get("VERCEL") else "database.db"
+DB_PATH = "/tmp/database.db" if os.environ.get("VERCEL") or os.environ.get("RENDER") else "database.db"
 
 # ============================================================
 # DATABASE SETUP
@@ -134,7 +134,14 @@ def init_db():
                 "ALTER TABLE users ADD COLUMN spotify_expires_at INTEGER"
             )
     except Exception:
-        # If something goes wrong here, don't crash the init process
+        pass
+    # Add bot_msg column to mood_history if missing
+    try:
+        c.execute("PRAGMA table_info(mood_history)")
+        hist_cols = [row[1] for row in c.fetchall()]
+        if "bot_msg" not in hist_cols:
+            c.execute("ALTER TABLE mood_history ADD COLUMN bot_msg TEXT")
+    except Exception:
         pass
     conn.commit()
     conn.close()
@@ -597,6 +604,8 @@ class MoodAI:
         self.default_mood = "happy"
 
     def detect_mood(self, text):
+        if not text:
+            return self.default_mood
         text_lower = text.lower()
         scores = {}
 
@@ -705,6 +714,60 @@ mood_ai = MoodAI()
 
 
 # ============================================================
+# SPOTIFY TRACKS (300+ curated songs, embed plays 30s preview)
+# ============================================================
+from songs_db import LANG_SONGS
+
+MOOD_PLAYLISTS = {
+    "happy": {"en": "37i9dQZF1DXdPec7aLTmlC", "hi": "37i9dQZF1DX0XUfTFmNBRM", "te": "37i9dQZF1DX6XceWZP1znY"},
+    "sad": {"en": "37i9dQZF1DX7qK8ma5wgG1", "hi": "37i9dQZF1DX18jTM2l2fJY", "te": "37i9dQZF1DWYoYGBbGKurt"},
+    "romantic": {"en": "37i9dQZF1DX50QitC6Oqtn", "hi": "37i9dQZF1DX4WYpdgoIcn6", "te": "37i9dQZF1DWYoYGBbGKurt"},
+    "energetic": {"en": "37i9dQZF1DX76Wlfdnj7AP", "hi": "37i9dQZF1DX0XUfTFmNBRM", "te": "37i9dQZF1DX6XceWZP1znY"},
+    "stressed": {"en": "37i9dQZF1DWZqd5JBER9Ig", "hi": "37i9dQZF1DX18jTM2l2fJY", "te": "37i9dQZF1DWYoYGBbGKurt"},
+    "angry": {"en": "37i9dQZF1DX1tyCD9QhIWF", "hi": "37i9dQZF1DX0XUfTFmNBRM", "te": "37i9dQZF1DX6XceWZP1znY"},
+    "chill": {"en": "37i9dQZF1DX4WYpdgoIcn6", "hi": "37i9dQZF1DX18jTM2l2fJY", "te": "37i9dQZF1DWYoYGBbGKurt"},
+    "nostalgic": {"en": "37i9dQZF1DX4o1oenSJRJd", "hi": "37i9dQZF1DWVlMBelAh9cE", "te": "37i9dQZF1DWYoYGBbGKurt"},
+    "confident": {"en": "37i9dQZF1DX1tyCD9QhIWF", "hi": "37i9dQZF1DX0XUfTFmNBRM", "te": "37i9dQZF1DX6XceWZP1znY"},
+    "bored": {"en": "37i9dQZF1DX76Wlfdnj7AP", "hi": "37i9dQZF1DX0XUfTFmNBRM", "te": "37i9dQZF1DX6XceWZP1znY"},
+}
+
+
+def get_mood_tracks(mood, lang="en"):
+    """Get expanded Spotify tracks by mixing related moods for bigger pools."""
+    related = {
+        "happy": ["happy", "energetic", "bored", "confident"],
+        "sad": ["sad", "stressed", "nostalgic", "chill"],
+        "stressed": ["stressed", "chill", "sad"],
+        "angry": ["angry", "energetic", "confident"],
+        "romantic": ["romantic", "chill", "nostalgic", "happy"],
+        "energetic": ["energetic", "happy", "confident", "angry", "bored"],
+        "chill": ["chill", "romantic", "stressed", "nostalgic"],
+        "nostalgic": ["nostalgic", "sad", "chill", "romantic"],
+        "confident": ["confident", "angry", "energetic", "happy"],
+        "bored": ["bored", "happy", "energetic", "chill"],
+    }
+    lang_data = LANG_SONGS.get(lang, LANG_SONGS.get("en", {}))
+    seen = set()
+    tracks = []
+    for m in related.get(mood, [mood]):
+        for s in lang_data.get(m, []):
+            if s["sp"] not in seen:
+                seen.add(s["sp"])
+                tracks.append({
+                    "id": s["sp"], "name": s["title"], "artist": "",
+                    "embed_url": f"https://open.spotify.com/embed/track/{s['sp']}?utm_source=generator&theme=0",
+                })
+    return tracks
+
+
+def get_mood_playlist(mood, lang="en"):
+    """Get a Spotify playlist URL for this mood + language."""
+    playlists = MOOD_PLAYLISTS.get(mood, MOOD_PLAYLISTS["happy"])
+    pid = playlists.get(lang, playlists["en"])
+    return f"https://open.spotify.com/embed/playlist/{pid}?utm_source=generator&theme=0"
+
+
+# ============================================================
 # AUTH DECORATOR
 # ============================================================
 def login_required(f):
@@ -763,9 +826,11 @@ def register():
     return render_template("register.html")
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["GET", "POST"])
 def logout():
     session.clear()
+    if request.method == "POST":
+        return jsonify({"ok": True})
     return redirect(url_for("login"))
 
 
@@ -853,6 +918,190 @@ def analyze_mood_debug():
 @login_required
 def get_user():
     return jsonify({"username": session.get("username"), "user_id": session.get("user_id")})
+
+
+# ============================================================
+# FRONTEND API ENDPOINTS
+# ============================================================
+
+
+@app.route("/me")
+def me():
+    if "user_id" in session:
+        return jsonify({"logged_in": True, "username": session.get("username", "User")})
+    return jsonify({"logged_in": False})
+
+
+WELLNESS_TIPS = {
+    "happy": "Keep spreading that positive energy! Share your joy with someone today 🌟",
+    "sad": "It's okay to feel this way. Try journaling your thoughts or taking a short walk 💙",
+    "stressed": "Try the 4-7-8 breathing technique: inhale 4s, hold 7s, exhale 8s 🧘",
+    "angry": "Channel that fire into something creative — art, music, or a workout 🎨",
+    "romantic": "Love is beautiful. Cherish every moment and express how you feel 💕",
+    "energetic": "Perfect time to tackle your biggest goal or try something new! ⚡",
+    "chill": "Enjoy this peace. Maybe meditate or listen to ambient sounds 🌿",
+    "nostalgic": "Beautiful memories shape who we are. Write one down today 📸",
+    "confident": "You're unstoppable! Set a bold goal and take the first step 👑",
+    "bored": "Boredom is an invitation to explore — learn, create, or discover! 🎯",
+}
+
+
+@app.route("/get", methods=["POST"])
+@login_required
+def get_chat_response():
+    message = request.form.get("msg", "")
+    lang = request.form.get("lang", "en")
+
+    mood = mood_ai.detect_mood(message)
+    mood_data = mood_ai.get_mood_data(mood)
+
+    # Try LLM first, fallback to local responses
+    bot_response = get_llm_response(message, mood, lang, session.get("user_id"))
+    if not bot_response:
+        bot_response = mood_ai.get_response(mood, message)
+
+    tip = WELLNESS_TIPS.get(mood, "")
+
+    # Fetch Spotify tracks for this mood + language
+    tracks = get_mood_tracks(mood, lang)
+    current_track = random.choice(tracks) if tracks else None
+    song_title = current_track["name"] + " - " + current_track["artist"] if current_track else "No track"
+
+    # Save to history
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO mood_history (user_id, mood, message, song, bot_msg) VALUES (?, ?, ?, ?, ?)",
+        (session["user_id"], mood, message, song_title, bot_response),
+    )
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "message": bot_response,
+        "mood": mood,
+        "color": mood_data["color"],
+        "emoji": mood_data["emoji"],
+        "energy": mood_data["energy"],
+        "frequency": mood_data["frequency"],
+        "tip": tip,
+        "track": current_track,
+        "tracks": tracks,
+        "playlist_url": get_mood_playlist(mood, lang),
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+@app.route("/history")
+@login_required
+def history_view():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        "SELECT mood, message, song, timestamp, bot_msg FROM mood_history "
+        "WHERE user_id=? ORDER BY timestamp DESC LIMIT 50",
+        (session["user_id"],),
+    )
+    history = []
+    for row in c.fetchall():
+        history.append({
+            "mood": row[0],
+            "user_msg": row[1],
+            "song": row[2],
+            "timestamp": row[3],
+            "bot_msg": row[4] or "",
+        })
+    conn.close()
+    return jsonify(history)
+
+
+@app.route("/clear-history", methods=["POST"])
+@login_required
+def clear_history():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("DELETE FROM mood_history WHERE user_id=?", (session["user_id"],))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/stats")
+@login_required
+def stats():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    uid = session["user_id"]
+    c.execute("SELECT COUNT(*) FROM mood_history WHERE user_id=?", (uid,))
+    total = c.fetchone()[0]
+    c.execute(
+        "SELECT COUNT(*) FROM mood_history WHERE user_id=? AND DATE(timestamp)=DATE('now')",
+        (uid,),
+    )
+    today = c.fetchone()[0]
+    c.execute(
+        "SELECT mood, COUNT(*) as cnt FROM mood_history WHERE user_id=? "
+        "GROUP BY mood ORDER BY cnt DESC LIMIT 1",
+        (uid,),
+    )
+    top_row = c.fetchone()
+    top_mood = top_row[0] if top_row else ""
+    c.execute(
+        "SELECT mood, COUNT(*) as cnt FROM mood_history WHERE user_id=? "
+        "GROUP BY mood ORDER BY cnt DESC",
+        (uid,),
+    )
+    distribution = [{"mood": r[0], "count": r[1]} for r in c.fetchall()]
+    c.execute(
+        "SELECT mood, timestamp FROM mood_history WHERE user_id=? "
+        "ORDER BY timestamp DESC LIMIT 10",
+        (uid,),
+    )
+    recent = [{"mood": r[0], "time": r[1]} for r in c.fetchall()]
+    conn.close()
+    return jsonify({
+        "total_chats": total,
+        "today_chats": today,
+        "top_mood": top_mood,
+        "mood_distribution": distribution,
+        "recent_moods": recent,
+    })
+
+
+@app.route("/graph-data")
+@login_required
+def graph_data():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    uid = session["user_id"]
+    c.execute(
+        "SELECT mood, COUNT(*) as cnt FROM mood_history WHERE user_id=? "
+        "GROUP BY mood ORDER BY cnt DESC",
+        (uid,),
+    )
+    rows = c.fetchall()
+    moods = [r[0] for r in rows]
+    counts = [r[1] for r in rows]
+    c.execute(
+        "SELECT strftime('%%H', timestamp) as hour, COUNT(*) as cnt "
+        "FROM mood_history WHERE user_id=? GROUP BY hour ORDER BY hour",
+        (uid,),
+    )
+    hourly = c.fetchall()
+    hourly_labels = [f"{r[0]}:00" for r in hourly]
+    hourly_counts = [r[1] for r in hourly]
+    conn.close()
+    return jsonify({
+        "moods": moods,
+        "counts": counts,
+        "hourly_labels": hourly_labels,
+        "hourly_counts": hourly_counts,
+    })
+
+
+@app.route("/spotify/token")
+def spotify_token_endpoint():
+    return jsonify({"error": True, "message": "Spotify not configured for local playback"})
 
 
 # ============================================================

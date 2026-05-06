@@ -242,7 +242,7 @@
       </div>
 
       <!-- ═══ SETTINGS PANEL ═══ -->
-      <div id="settingsPanel" class="settings-panel hidden">
+      <div id="settingsPanel" class="settings-panel">
         <div class="settings-content">
           <h3>⚙️ Settings</h3>
           <p>Toggle Text-to-Speech:</p>
@@ -350,48 +350,60 @@
           const tip = document.createElement('div'); tip.className = 'wellness-card';
           tip.innerHTML = `<span class="wc-icon">🧘</span><span>${data.tip}</span>`; extras.appendChild(tip);
         }
-        // Enhanced Spotify with Auto-Play and Change Song
-        if (data.link) {
-          const langLabels = { en: 'English', hi: 'Bollywood Hindi', te: 'Tollywood Telugu' };
-          const label = langLabels[currentLang] || 'English';
-          const spRow = document.createElement('div'); spRow.className = 'spotify-row';
-
-          // Auto-Play button (still available for manual trigger)
-          const autoPlayBtn = document.createElement('button'); autoPlayBtn.className = 'autoplay-btn';
-          autoPlayBtn.innerHTML = '▶️ Auto-Play';
-          autoPlayBtn.onclick = () => { autoPlaySpotify(data.link); };
-          spRow.appendChild(autoPlayBtn);
-
-          // Original Spotify link
-          const sp = document.createElement('a'); sp.className = 'spotify-btn'; sp.href = data.link; sp.target = '_blank'; sp.rel = 'noopener noreferrer';
-          sp.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>' + label + ' Playlist';
-          spRow.appendChild(sp);
-
-          // Change song button
-          if (data.links && data.links.length > 1) {
-            const chg = document.createElement('button'); chg.className = 'change-song-btn';
-            chg.innerHTML = '🎵 Change';
-            chg.onclick = () => {
-              const idx = data.links.indexOf(data.link);
-              data.link = data.links[(idx + 1) % data.links.length];
-              sp.href = data.link;
-              chg.classList.add('pulse');
-              setTimeout(() => chg.classList.remove('pulse'), 600);
+        // Embedded Spotify Player with 30s preview
+        if (data.track && data.track.embed_url) {
+          const playerBox = document.createElement('div'); playerBox.className = 'spotify-player-box';
+          // Track info header
+          const trackHeader = document.createElement('div'); trackHeader.className = 'track-header';
+          trackHeader.innerHTML = `<span class="track-name">🎵 ${data.track.name}</span><span class="track-artist">${data.track.artist}</span>`;
+          playerBox.appendChild(trackHeader);
+          // Spotify embed iframe (30-second preview)
+          const iframe = document.createElement('iframe');
+          iframe.className = 'spotify-embed';
+          iframe.src = data.track.embed_url;
+          iframe.width = '100%'; iframe.height = '80'; iframe.frameBorder = '0';
+          iframe.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+          iframe.loading = 'lazy';
+          playerBox.appendChild(iframe);
+          // Unlimited Change Song (shuffles & cycles forever)
+          if (data.tracks && data.tracks.length > 1) {
+            let tIdx = data.tracks.findIndex(t => t.id === data.track.id);
+            const shuffled = [...data.tracks].sort(() => Math.random() - 0.5);
+            let sIdx = 0;
+            const btnRow = document.createElement('div'); btnRow.className = 'player-btn-row';
+            const changeBtn = document.createElement('button'); changeBtn.className = 'change-song-btn';
+            changeBtn.innerHTML = '🔀 Change Song';
+            changeBtn.onclick = () => {
+              sIdx = (sIdx + 1) % shuffled.length;
+              if (sIdx === 0) shuffled.sort(() => Math.random() - 0.5); // reshuffle on loop
+              const nt = shuffled[sIdx];
+              iframe.src = nt.embed_url;
+              trackHeader.innerHTML = `<span class="track-name">🎵 ${nt.name}</span><span class="track-artist">${nt.artist}</span>`;
+              changeBtn.classList.add('pulse'); setTimeout(() => changeBtn.classList.remove('pulse'), 600);
             };
-            spRow.appendChild(chg);
+            btnRow.appendChild(changeBtn);
+            playerBox.appendChild(btnRow);
           }
-
-          // Playing indicator
-          const indicator = document.createElement('div'); indicator.className = 'spotify-playing-indicator';
-          indicator.textContent = '';
-          spRow.appendChild(indicator);
-
-          extras.appendChild(spRow);
-
-          // Auto-play automatically if Spotify is ready
-          if (spotifyReady && spotifyDeviceId && currentLang === 'te') {
-            setTimeout(() => autoPlaySpotify(data.link), 1000);
+          // Playlist suggestion
+          if (data.playlist_url) {
+            const plRow = document.createElement('div'); plRow.className = 'player-btn-row';
+            const plBtn = document.createElement('button'); plBtn.className = 'playlist-btn';
+            plBtn.innerHTML = '📋 View Full Playlist';
+            const plFrame = document.createElement('iframe');
+            plFrame.className = 'spotify-embed playlist-frame'; plFrame.style.display = 'none';
+            plFrame.src = ''; plFrame.width = '100%'; plFrame.height = '380'; plFrame.frameBorder = '0';
+            plFrame.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+            plBtn.onclick = () => {
+              if (plFrame.style.display === 'none') {
+                plFrame.src = data.playlist_url; plFrame.style.display = 'block';
+                plBtn.innerHTML = '📋 Hide Playlist';
+              } else {
+                plFrame.style.display = 'none'; plBtn.innerHTML = '📋 View Full Playlist';
+              }
+            };
+            plRow.appendChild(plBtn); playerBox.appendChild(plRow); playerBox.appendChild(plFrame);
           }
+          extras.appendChild(playerBox);
         }
 
         // Advanced Cosmic Features Display
