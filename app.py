@@ -2,14 +2,18 @@ import os
 import hashlib
 import sqlite3
 import random
+import requests
+import base64
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from functools import wraps
 
 from dotenv import load_dotenv
+
 load_dotenv()
 
-def get_llm_response(user_input, mood, lang='en', user_id=None):
+
+def get_llm_response(user_input, mood, lang="en", user_id=None):
     invoke_url = "https://integrate.api.nvidia.com/v1/chat/completions"
     api_key = os.environ.get("NVIDIA_API_KEY", "")
     headers = {
@@ -19,29 +23,49 @@ def get_llm_response(user_input, mood, lang='en', user_id=None):
 
     lang_name = "casual English (like a close friend texting)"
     if lang == "hi":
-        lang_name = "Hinglish (conversational Hindi mixed with English, casual and friendly)"
+        lang_name = (
+            "Hinglish (conversational Hindi mixed with English, "
+            "casual and friendly)"
+        )
     elif lang == "te":
-        lang_name = "Tenglish (conversational Telugu mixed with English, casual and friendly)"
+        lang_name = (
+            "Tenglish (conversational Telugu mixed with English, "
+            "casual and friendly)"
+        )
 
     history_text = ""
     if user_id:
         try:
-            import sqlite3
-            conn = sqlite3.connect('database.db')
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            history = c.execute("SELECT message, mood FROM mood_history WHERE user_id=? ORDER BY id DESC LIMIT 4", (user_id,)).fetchall()
+            history = c.execute(
+                "SELECT message, mood FROM mood_history "
+                "WHERE user_id=? ORDER BY id DESC LIMIT 4",
+                (user_id,),
+            ).fetchall()
             conn.close()
-            history_text = "\n".join([f"User: {row[0]}\nAMIS: {row[1]}" for row in reversed(history)])
+            history_text = "\n".join(
+                [f"User: {row[0]}\nAMIS: {row[1]}" for row in reversed(history)]
+            )
             if history_text:
                 history_text = f"Recent chat history:\n{history_text}\n"
         except Exception as e:
             print("History error:", e)
 
-    prompt = f"You are AMIS, an AI Mood Intelligence System. You are a highly empathetic, natural-sounding, warm friend.\n{history_text}The user just said: '{user_input}'. Their detected mood is '{mood}'. Respond in a short, supportive manner (1-2 sentences max) taking into account their recent history if any. You must respond in {lang_name}. Do NOT use any markdown or special formatting. Use emojis naturally. Just raw text."
+    prompt = (
+        "You are AMIS, an AI Mood Intelligence System. "
+        "You are a highly empathetic, natural-sounding, warm friend.\n"
+        f"{history_text}The user just said: '{user_input}'. "
+        f"Their detected mood is '{mood}'. Respond in a short, supportive "
+        "manner (1-2 sentences max) taking into account their recent history "
+        f"if any. You must respond in {lang_name}. "
+        "Do NOT use any markdown or special formatting. Use emojis naturally. "
+        "Just raw text."
+    )
 
     payload = {
         "model": "meta/llama-3.1-70b-instruct",
-        "messages": [{"role":"user","content":prompt}],
+        "messages": [{"role": "user", "content": prompt}],
         "max_tokens": 150,
         "temperature": 0.5,
         "top_p": 0.7,
@@ -49,7 +73,9 @@ def get_llm_response(user_input, mood, lang='en', user_id=None):
     }
 
     try:
-        response = requests.post(invoke_url, headers=headers, json=payload, timeout=30)
+        response = requests.post(
+            invoke_url, headers=headers, json=payload, timeout=30
+        )
         response.raise_for_status()
         data = response.json()
         return data["choices"][0]["message"]["content"].strip()
@@ -61,12 +87,14 @@ def get_llm_response(user_input, mood, lang='en', user_id=None):
 app = Flask(__name__)
 app.secret_key = os.urandom(24).hex()
 
+# Define DB path depending on environment (Vercel uses read-only disk except /tmp)
+DB_PATH = "/tmp/database.db" if os.environ.get("VERCEL") else "database.db"
 
 # ============================================================
 # DATABASE SETUP
 # ============================================================
 def init_db():
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     # Create users table (includes spotify columns for newer installs)
     c.execute(
@@ -94,11 +122,17 @@ def init_db():
         c.execute("PRAGMA table_info(users)")
         cols = [row[1] for row in c.fetchall()]
         if "spotify_access_token" not in cols:
-            c.execute("ALTER TABLE users ADD COLUMN spotify_access_token TEXT")
+            c.execute(
+                "ALTER TABLE users ADD COLUMN spotify_access_token TEXT"
+            )
         if "spotify_refresh_token" not in cols:
-            c.execute("ALTER TABLE users ADD COLUMN spotify_refresh_token TEXT")
+            c.execute(
+                "ALTER TABLE users ADD COLUMN spotify_refresh_token TEXT"
+            )
         if "spotify_expires_at" not in cols:
-            c.execute("ALTER TABLE users ADD COLUMN spotify_expires_at INTEGER")
+            c.execute(
+                "ALTER TABLE users ADD COLUMN spotify_expires_at INTEGER"
+            )
     except Exception:
         # If something goes wrong here, don't crash the init process
         pass
@@ -711,7 +745,7 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = hashlib.sha256(request.form.get("password", "").encode()).hexdigest()
-        conn = sqlite3.connect("database.db")
+        conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
         user = c.fetchone()
@@ -730,7 +764,7 @@ def register():
         username = request.form.get("username")
         password = hashlib.sha256(request.form.get("password", "").encode()).hexdigest()
         try:
-            conn = sqlite3.connect("database.db")
+            conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             c.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
             conn.commit()
@@ -763,7 +797,7 @@ def analyze_mood():
     song = random.choice(mood_data["songs"])
 
     # Save to history
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
         "INSERT INTO mood_history (user_id, mood, message, song) VALUES (?, ?, ?, ?)",
@@ -789,7 +823,7 @@ def analyze_mood():
 @app.route("/api/history", methods=["GET"])
 @login_required
 def get_history():
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute(
         "SELECT mood, message, song, timestamp FROM mood_history WHERE user_id=? ORDER BY timestamp DESC LIMIT 50",
