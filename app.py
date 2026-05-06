@@ -68,11 +68,15 @@ app.secret_key = os.urandom(24).hex()
 def init_db():
     conn = sqlite3.connect("database.db")
     c = conn.cursor()
+    # Create users table (includes spotify columns for newer installs)
     c.execute(
         """CREATE TABLE IF NOT EXISTS users
                  (id INTEGER PRIMARY KEY AUTOINCREMENT,
                   username TEXT UNIQUE NOT NULL,
                   password TEXT NOT NULL,
+                  spotify_access_token TEXT,
+                  spotify_refresh_token TEXT,
+                  spotify_expires_at INTEGER,
                   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"""
     )
     c.execute(
@@ -85,6 +89,19 @@ def init_db():
                   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                   FOREIGN KEY(user_id) REFERENCES users(id))"""
     )
+    # For older DBs, add missing spotify columns if they don't exist
+    try:
+        c.execute("PRAGMA table_info(users)")
+        cols = [row[1] for row in c.fetchall()]
+        if "spotify_access_token" not in cols:
+            c.execute("ALTER TABLE users ADD COLUMN spotify_access_token TEXT")
+        if "spotify_refresh_token" not in cols:
+            c.execute("ALTER TABLE users ADD COLUMN spotify_refresh_token TEXT")
+        if "spotify_expires_at" not in cols:
+            c.execute("ALTER TABLE users ADD COLUMN spotify_expires_at INTEGER")
+    except Exception:
+        # If something goes wrong here, don't crash the init process
+        pass
     conn.commit()
     conn.close()
 
